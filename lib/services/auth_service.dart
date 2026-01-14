@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'dart:js' as js;
 
 class AuthService extends ChangeNotifier {
   static const String _baseUrl = 'https://your-api.example.com';
@@ -27,6 +28,11 @@ class AuthService extends ChangeNotifier {
     _email = prefs.getString(_keyEmail);
     _accessToken = prefs.getString(_keyAccessToken);
     _refreshToken = prefs.getString(_keyRefreshToken);
+    if (kIsWeb && _accessToken == 'dev-access-token') {
+      _email = null;
+      _accessToken = null;
+      _refreshToken = null;
+    }
     notifyListeners();
   }
 
@@ -127,15 +133,38 @@ class AuthService extends ChangeNotifier {
     }
   }
 
-  Future<void> startGoogleLogin() async {
-    if (!kIsWeb) return;
-    final url = '$_baseUrl/auth/google';
+  Future<bool> startGoogleLogin() async {
+    if (!kIsWeb) return false;
     try {
-      await Future.microtask(() {
-        throw UnimplementedError('Google login flow should be implemented with real backend');
-      });
+      final fn = js.context['hmGoogleLogin'];
+      if (fn is js.JsFunction) {
+        fn.apply(const []);
+      } else {
+        debugPrint('hmGoogleLogin is not defined on window');
+        return false;
+      }
+      const totalMs = 6000;
+      const stepMs = 200;
+      final steps = totalMs ~/ stepMs;
+      for (var i = 0; i < steps; i++) {
+        await Future.delayed(const Duration(milliseconds: stepMs));
+        final cred = js.context['hmGoogleCredential'];
+        if (cred is String && cred.isNotEmpty) {
+          final prefs = await SharedPreferences.getInstance();
+          _email = 'google-user';
+          _accessToken = cred;
+          _refreshToken = null;
+          await prefs.setString(_keyEmail, _email!);
+          await prefs.setString(_keyAccessToken, _accessToken!);
+          await prefs.remove(_keyRefreshToken);
+          notifyListeners();
+          return true;
+        }
+      }
+      return false;
     } catch (e) {
-      debugPrint('startGoogleLogin stub: $url');
+      debugPrint('startGoogleLogin error: $e');
+      return false;
     }
   }
 

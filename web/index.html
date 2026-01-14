@@ -39,6 +39,29 @@
       console.warn('Google Maps API key 未配置：请在 web/map_key.js 设置 window.__GMAPS_API_KEY');
     }
   </script>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script>
+    window.hmGoogleCredential = null;
+    window.hmGoogleLogin = function () {
+      if (!window.google || !google.accounts || !google.accounts.id) {
+        console.error('Google Identity Services not available');
+        return;
+      }
+      if (!window.__GOOGLE_CLIENT_ID) {
+        console.error('Missing __GOOGLE_CLIENT_ID in map_key.js');
+        return;
+      }
+      google.accounts.id.initialize({
+        client_id: window.__GOOGLE_CLIENT_ID,
+        callback: function (resp) {
+          if (resp && resp.credential) {
+            window.hmGoogleCredential = resp.credential;
+          }
+        }
+      });
+      google.accounts.id.prompt();
+    };
+  </script>
 </head>
 <body>
   <script src="flutter_bootstrap.js" async></script>
