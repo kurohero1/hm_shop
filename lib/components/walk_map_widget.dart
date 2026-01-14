@@ -186,7 +186,22 @@ class _WalkMapWidgetState extends State<WalkMapWidget> {
   Future<List<LatLng>> _getRouteViaJsDirections() {
     final completer = Completer<List<LatLng>>();
     try {
-      final directionsService = js.context['google']['maps']['DirectionsService']();
+      final google = js.context['google'];
+      if (google == null) {
+        completer.completeError(Exception('Google Maps JS SDK not available'));
+        return completer.future;
+      }
+      final maps = (google as js.JsObject)['maps'];
+      if (maps == null) {
+        completer.completeError(Exception('Google Maps maps namespace missing'));
+        return completer.future;
+      }
+      final directionsCtor = maps['DirectionsService'];
+      if (directionsCtor == null) {
+        completer.completeError(Exception('DirectionsService constructor missing'));
+        return completer.future;
+      }
+      final directionsService = js.JsObject(directionsCtor as js.JsFunction, const []);
       final request = js.JsObject.jsify({
         'origin': widget.origin,
         'destination': widget.destination,
@@ -194,7 +209,7 @@ class _WalkMapWidgetState extends State<WalkMapWidget> {
       });
       directionsService.callMethod('route', [
         request,
-        js.allowInterop((result, status) {
+        (result, status) {
           if (status != 'OK') {
             completer.completeError(Exception('Directions status: $status'));
             return;
@@ -208,23 +223,20 @@ class _WalkMapWidgetState extends State<WalkMapWidget> {
           final overviewPath = route0['overview_path'];
           final pts = <LatLng>[];
           for (var i = 0; i < overviewPath.length; i++) {
-            final p = overviewPath[i];
+            final p = overviewPath[i] as js.JsObject;
             final lat = p.callMethod('lat') as num;
             final lng = p.callMethod('lng') as num;
             pts.add(LatLng(lat.toDouble(), lng.toDouble()));
           }
           completer.complete(pts);
-        }),
+        },
       ]);
     } catch (e) {
       completer.completeError(e);
     }
     return completer.future;
   }
-
-  /// Python 里的 route_coords[::len//10]
-  List<LatLng> _sampleRoute(List<LatLng> route, int count) {
-    if (route.isEmpty) return [];
+ List<LatLng> _sampleRoute(List<LatLng> route, int count) {    if (route.isEmpty) return [];
     final step = (route.length / count).ceil();
     final safeStep = step <= 0 ? 1 : step;
     final result = <LatLng>[];
