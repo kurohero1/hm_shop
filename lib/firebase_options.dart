@@ -8,25 +8,37 @@ FirebaseOptions get webFirebaseOptions {
   }
 
   final dynamic config = js.context['__FIREBASE_CONFIG'];
-  if (config == null) {
-    throw StateError('__FIREBASE_CONFIG is not defined on window');
+
+  String? _readJsString(String key) {
+    if (config == null) return null;
+    final value = config[key];
+    if (value is String && value.isNotEmpty) return value;
+    return null;
   }
 
-  String _readString(String key) {
-    final value = config[key];
-    if (value is String && value.isNotEmpty) {
-      return value;
-    }
-    throw StateError('Missing or invalid Firebase config field: $key');
+  String? _readEnv(String key) {
+    return const String.fromEnvironment(key, defaultValue: '') == ''
+        ? null
+        : const String.fromEnvironment(key);
+  }
+
+  String _require(String? value, String field) {
+    if (value != null && value.isNotEmpty) return value;
+    throw StateError('Missing Firebase config field: $field');
   }
 
   return FirebaseOptions(
-    apiKey: _readString('apiKey'),
-    authDomain: _readString('authDomain'),
-    projectId: _readString('projectId'),
-    storageBucket: _readString('storageBucket'),
-    messagingSenderId: _readString('messagingSenderId'),
-    appId: _readString('appId'),
-    measurementId: _readString('measurementId'),
+    apiKey: _require(_readJsString('apiKey') ?? _readEnv('FIREBASE_API_KEY'), 'apiKey'),
+    authDomain:
+        _require(_readJsString('authDomain') ?? _readEnv('FIREBASE_AUTH_DOMAIN'), 'authDomain'),
+    projectId:
+        _require(_readJsString('projectId') ?? _readEnv('FIREBASE_PROJECT_ID'), 'projectId'),
+    storageBucket: _require(
+        _readJsString('storageBucket') ?? _readEnv('FIREBASE_STORAGE_BUCKET'), 'storageBucket'),
+    messagingSenderId: _require(_readJsString('messagingSenderId') ??
+        _readEnv('FIREBASE_MESSAGING_SENDER_ID'), 'messagingSenderId'),
+    appId: _require(_readJsString('appId') ?? _readEnv('FIREBASE_APP_ID'), 'appId'),
+    measurementId:
+        _readJsString('measurementId') ?? _readEnv('FIREBASE_MEASUREMENT_ID'),
   );
 }
