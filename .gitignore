@@ -43,3 +43,6 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Local web-only API key file (do not commit secrets)
+web/map_key.js

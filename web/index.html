@@ -31,8 +31,60 @@
 
   <title>hm_shop</title>
   <link rel="manifest" href="manifest.json">
+  <script src="map_key.js"></script>
+  <script>
+    if (window.__GMAPS_API_KEY) {
+      document.write('<script src="https://maps.googleapis.com/maps/api/js?key=' + window.__GMAPS_API_KEY + '"><\/script>');
+    } else {
+      console.warn('Google Maps API key 未配置：请在 web/map_key.js 设置 window.__GMAPS_API_KEY');
+    }
+  </script>
 </head>
 <body>
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>
+
+<script>
+  let map;
+  let routeLine;
+  let markers = [];
+
+  window.initWalkMap = function (centerLat, centerLng, routePath, places) {
+    const center = { lat: centerLat, lng: centerLng };
+
+    if (!map) {
+      map = new google.maps.Map(document.getElementById("map"), {
+        zoom: 14,
+        center: center,
+      });
+    } else {
+      map.setCenter(center);
+    }
+
+    // 清路线
+    if (routeLine) routeLine.setMap(null);
+
+    // 清 marker
+    markers.forEach(m => m.setMap(null));
+    markers = [];
+
+    // 画路线
+    routeLine = new google.maps.Polyline({
+      path: routePath,
+      strokeColor: "#1e88e5",
+      strokeWeight: 4,
+    });
+    routeLine.setMap(map);
+
+    // 画 marker
+    places.forEach(p => {
+      const m = new google.maps.Marker({
+        position: { lat: p.lat, lng: p.lng },
+        map: map,
+        title: p.name,
+      });
+      markers.push(m);
+    });
+  };
+</script>
