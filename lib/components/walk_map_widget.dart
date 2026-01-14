@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
@@ -114,14 +115,16 @@ class _WalkMapWidgetState extends State<WalkMapWidget> {
         });
       }
 
-      // 异步加载沿途地点，避免阻塞加载指示器
-      final sampled = _sampleRoute(route, 10);
-      Future(() async {
-        await _getPlacesAlongRoute(sampled);
-        if (mounted) {
-          setState(() {});
-        }
-      });
+      // Web 上直接调用 Places REST 也会遇到 CORS 限制，这里仅在非 Web 环境请求
+      if (!kIsWeb) {
+        final sampled = _sampleRoute(route, 10);
+        Future(() async {
+          await _getPlacesAlongRoute(sampled);
+          if (mounted) {
+            setState(() {});
+          }
+        });
+      }
     } catch (e) {
       debugPrint(e.toString());
       if (mounted) {
@@ -135,6 +138,9 @@ class _WalkMapWidgetState extends State<WalkMapWidget> {
 
   /// Directions API
   Future<List<LatLng>> _getRoute() async {
+    if (kIsWeb) {
+      return _getRouteViaJsDirections();
+    }
     final params = {
       'origin': widget.origin,
       'destination': widget.destination,
@@ -175,6 +181,45 @@ class _WalkMapWidgetState extends State<WalkMapWidget> {
     return points
         .map((p) => LatLng(p.latitude, p.longitude))
         .toList();
+  }
+
+  Future<List<LatLng>> _getRouteViaJsDirections() {
+    final completer = Completer<List<LatLng>>();
+    try {
+      final directionsService = js.context['google']['maps']['DirectionsService']();
+      final request = js.JsObject.jsify({
+        'origin': widget.origin,
+        'destination': widget.destination,
+        'travelMode': 'WALKING',
+      });
+      directionsService.callMethod('route', [
+        request,
+        js.allowInterop((result, status) {
+          if (status != 'OK') {
+            completer.completeError(Exception('Directions status: $status'));
+            return;
+          }
+          final routes = result['routes'];
+          if (routes == null || routes.length == 0) {
+            completer.complete(<LatLng>[]);
+            return;
+          }
+          final route0 = routes[0];
+          final overviewPath = route0['overview_path'];
+          final pts = <LatLng>[];
+          for (var i = 0; i < overviewPath.length; i++) {
+            final p = overviewPath[i];
+            final lat = p.callMethod('lat') as num;
+            final lng = p.callMethod('lng') as num;
+            pts.add(LatLng(lat.toDouble(), lng.toDouble()));
+          }
+          completer.complete(pts);
+        }),
+      ]);
+    } catch (e) {
+      completer.completeError(e);
+    }
+    return completer.future;
   }
 
   /// Python 里的 route_coords[::len//10]
