@@ -10,18 +10,32 @@ import 'firebase_options.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: webFirebaseOptions,
-  );
-  runApp(
-    MultiProvider(
-      providers: [
-        ChangeNotifierProvider(create: (_) => StepService()),
-        ChangeNotifierProvider(create: (_) => AuthService()),
-      ],
-      child: const MyApp(),
-    ),
-  );
+  try {
+    await Firebase.initializeApp(
+      options: webFirebaseOptions,
+    );
+    runApp(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider(create: (_) => StepService()),
+          ChangeNotifierProvider(create: (_) => AuthService()),
+        ],
+        child: const MyApp(),
+      ),
+    );
+  } catch (e, st) {
+    debugPrint('Firebase initializeApp error: $e');
+    debugPrint(st.toString());
+    runApp(
+      MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: Text('Firebase 初始化失败: $e'),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class MyApp extends StatelessWidget {
