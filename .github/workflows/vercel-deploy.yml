@@ -28,6 +28,23 @@ jobs:
       - name: Flutter Pub Get
         run: flutter pub get
 
+      - name: Validate required secrets
+        run: |
+          api="${{ secrets.FIREBASE_API_KEY }}"
+          auth="${{ secrets.FIREBASE_AUTH_DOMAIN }}"
+          pid="${{ secrets.FIREBASE_PROJECT_ID }}"
+          bucket="${{ secrets.FIREBASE_STORAGE_BUCKET }}"
+          msg="${{ secrets.FIREBASE_MESSAGING_SENDER_ID }}"
+          app="${{ secrets.FIREBASE_APP_ID }}"
+          maps="${{ secrets.GMAPS_API_KEY }}"
+          if [ -z "$api" ] || [ -z "$auth" ] || [ -z "$pid" ] || [ -z "$bucket" ] || [ -z "$msg" ] || [ -z "$app" ]; then
+            echo "::error::Missing required Firebase secrets (API_KEY/AUTH_DOMAIN/PROJECT_ID/STORAGE_BUCKET/MESSAGING_SENDER_ID/APP_ID)"
+            exit 1
+          fi
+          if [ -z "$maps" ]; then
+            echo "::warning::GMAPS_API_KEY is missing; map features may fail"
+          fi
+
       - name: Build Flutter Web
         run: |
           flutter build web --release \
