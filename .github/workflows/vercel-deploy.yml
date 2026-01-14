@@ -1,0 +1,50 @@
+name: Deploy Flutter Web to Vercel
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Vercel CLI
+        run: npm i -g vercel
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: "stable"
+
+      - name: Flutter Pub Get
+        run: flutter pub get
+
+      - name: Build Flutter Web
+        run: flutter build web --release --dart-define=GMAPS_API_KEY=${{ secrets.GMAPS_API_KEY }}
+
+      - name: Inject map_key.js for Google Maps
+        run: echo "window.__GMAPS_API_KEY='${{ secrets.GMAPS_API_KEY }}';" > build/web/map_key.js
+
+      - name: Deploy to Vercel (Production)
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_SCOPE: ${{ secrets.VERCEL_ORG_ID }}
+        run: |
+          if [ -z "$VERCEL_TOKEN" ]; then
+            echo "Missing VERCEL_TOKEN secret"
+            exit 1
+          fi
+          if [ -z "$VERCEL_SCOPE" ]; then
+            vercel deploy build/web --prod --yes --token="$VERCEL_TOKEN"
+          else
+            vercel deploy build/web --prod --yes --token="$VERCEL_TOKEN" --scope="$VERCEL_SCOPE"
+          fi
