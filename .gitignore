@@ -48,4 +48,4 @@ app.*.map.json
 web/map_key.js
 
 # Firebase options (contains secrets)
-lib/firebase_options.dart
+# lib/firebase_options.dart
