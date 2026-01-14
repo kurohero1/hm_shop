@@ -17,9 +17,8 @@ FirebaseOptions get webFirebaseOptions {
   }
 
   String? _readEnv(String key) {
-    return const String.fromEnvironment(key, defaultValue: '') == ''
-        ? null
-        : const String.fromEnvironment(key);
+    final v = String.fromEnvironment(key, defaultValue: '');
+    return v.isEmpty ? null : v;
   }
 
   String _require(String? value, String field) {
