@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:hm_shop/pages/Main/index.dart';
+import 'package:hm_shop/pages/Login/index.dart';
 import 'package:hm_shop/services/step_service.dart';
+import 'package:hm_shop/services/auth_service.dart';
 import 'package:provider/provider.dart';
 
 void main() {
@@ -9,6 +11,7 @@ void main() {
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => StepService()),
+        ChangeNotifierProvider(create: (_) => AuthService()),
       ],
       child: const MyApp(),
     ),
@@ -20,6 +23,7 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final auth = context.watch<AuthService>();
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'さんぽアプリ',
@@ -37,7 +41,7 @@ class MyApp extends StatelessWidget {
         Locale('ja', 'JP'), // 日语
         Locale('en', 'US'), // 英语
       ],
-      home: const MainPage(),
+      home: auth.isAuthenticated ? const MainPage() : const LoginPage(),
     );
   }
 }

@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 // 仅 Web 端可用：从 window 读取注入的 JS 密钥
 // 注意：本项目为 Web 端，直接使用 dart:html
 import 'dart:html' as html;
+import 'dart:js' as js;
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_polyline_points/flutter_polyline_points.dart';
@@ -50,10 +51,11 @@ class _WalkMapWidgetState extends State<WalkMapWidget> {
     const envKey = String.fromEnvironment('GMAPS_API_KEY', defaultValue: '');
     if (envKey.isNotEmpty) return envKey;
     if (kIsWeb) {
-      final dynamic jsKey = (html.window as dynamic).__GMAPS_API_KEY;
-      if (jsKey is String && jsKey.isNotEmpty) {
-        return jsKey;
-      }
+      try {
+        final hasProp = (js.context as dynamic).hasProperty('__GMAPS_API_KEY');
+        final dynamic jsKey = hasProp == true ? js.context['__GMAPS_API_KEY'] : null;
+        if (jsKey is String && jsKey.isNotEmpty) return jsKey;
+      } catch (_) {}
     }
     return '';
   }
@@ -96,9 +98,6 @@ class _WalkMapWidgetState extends State<WalkMapWidget> {
         });
         return;
       }
-      
-      final sampled = _sampleRoute(route, 10);
-      await _getPlacesAlongRoute(sampled);
 
       if (mounted) {
         setState(() {
@@ -111,9 +110,18 @@ class _WalkMapWidgetState extends State<WalkMapWidget> {
             ),
           );
           _center = route[route.length ~/ 2];
-          _loading = false;
+          _loading = false; // 先展示地图与路线
         });
       }
+
+      // 异步加载沿途地点，避免阻塞加载指示器
+      final sampled = _sampleRoute(route, 10);
+      Future(() async {
+        await _getPlacesAlongRoute(sampled);
+        if (mounted) {
+          setState(() {});
+        }
+      });
     } catch (e) {
       debugPrint(e.toString());
       if (mounted) {
@@ -145,7 +153,7 @@ class _WalkMapWidgetState extends State<WalkMapWidget> {
       params,
     );
 
-    final res = await http.get(uri);
+    final res = await http.get(uri).timeout(const Duration(seconds: 12));
     
     if (res.statusCode != 200) {
        throw Exception('HTTP Error: ${res.statusCode}');
@@ -171,10 +179,17 @@ class _WalkMapWidgetState extends State<WalkMapWidget> {
 
   /// Python 里的 route_coords[::len//10]
   List<LatLng> _sampleRoute(List<LatLng> route, int count) {
-    final step = (route.length / count).floor();
-    return [
-      for (int i = 0; i < route.length; i += step) route[i]
-    ];
+    if (route.isEmpty) return [];
+    final step = (route.length / count).ceil();
+    final safeStep = step <= 0 ? 1 : step;
+    final result = <LatLng>[];
+    for (int i = 0; i < route.length; i += safeStep) {
+      result.add(route[i]);
+    }
+    if (result.isEmpty || result.last != route.last) {
+      result.add(route.last);
+    }
+    return result;
   }
 
   /// Places API
@@ -215,7 +230,7 @@ class _WalkMapWidgetState extends State<WalkMapWidget> {
             '&opennow=true'
             '&key=$_apiKey';
 
-        final res = await http.get(Uri.parse(url));
+        final res = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 8));
         final data = jsonDecode(res.body);
 
         for (final place in data['results'] ?? []) {

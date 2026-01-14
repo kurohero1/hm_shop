@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:hm_shop/components/step_counter.dart';
 import 'package:hm_shop/components/weekly_distance_chart.dart';
 import 'package:hm_shop/components/walk_map_widget.dart';
+import 'package:provider/provider.dart';
+import 'package:hm_shop/services/auth_service.dart';
 
 class MainPage extends StatefulWidget {
   const MainPage({super.key});
@@ -86,9 +88,14 @@ class _MainPageState extends State<MainPage> {
       appBar: AppBar(
         backgroundColor: mainGreen,
         title: const Text('さんぽアプリ'),
-        actions: const [
-          Icon(Icons.logout),
-          SizedBox(width: 16),
+        actions: [
+          IconButton(
+            onPressed: () {
+              context.read<AuthService>().signOut();
+            },
+            icon: const Icon(Icons.logout),
+          ),
+          const SizedBox(width: 8),
         ],
       ),
       body: SingleChildScrollView(
