@@ -46,6 +46,4 @@ app.*.map.json
 
 # Local web-only API key file (do not commit secrets)
 web/map_key.js
-
-# Firebase options (contains secrets)
-# lib/firebase_options.dart
+web/firebase_config.js
