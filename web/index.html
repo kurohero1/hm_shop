@@ -34,7 +34,7 @@
   <script src="map_key.js"></script>
   <script>
     if (window.__GMAPS_API_KEY) {
-      document.write('<script src="https://maps.googleapis.com/maps/api/js?key=' + window.__GMAPS_API_KEY + '"><\/script>');
+      document.write('<script src="https://maps.googleapis.com/maps/api/js?key=' + window.__GMAPS_API_KEY + '&libraries=places"><\/script>');
     } else {
       console.warn('Google Maps API key 未配置：请在 web/map_key.js 设置 window.__GMAPS_API_KEY');
     }

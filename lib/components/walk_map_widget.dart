@@ -116,8 +116,10 @@ class _WalkMapWidgetState extends State<WalkMapWidget> {
       }
 
       // Web 上直接调用 Places REST 也会遇到 CORS 限制，这里仅在非 Web 环境请求
-      if (!kIsWeb) {
-        final sampled = _sampleRoute(route, 10);
+      final sampled = _sampleRoute(route, 10);
+      if (kIsWeb) {
+        _loadPlacesAlongRouteWeb(sampled);
+      } else {
         Future(() async {
           await _getPlacesAlongRoute(sampled);
           if (mounted) {
@@ -249,35 +251,126 @@ class _WalkMapWidgetState extends State<WalkMapWidget> {
     return result;
   }
 
-  /// Places API
-  Future<void> _getPlacesAlongRoute(List<LatLng> points) async {
-    // 1. 定义日文标签到 Google Places API types 的映射
-    //    可以在这里添加更多类型的映射关系
+  Set<String> _buildTargetTypes() {
     final Map<String, List<String>> filterMapping = {
       '買い物さんぽ': ['shopping_mall', 'store'],
       'グルメ\nさんぽ': ['restaurant', 'food'],
       '甘味\nさんぽ': ['cafe', 'bakery'],
       'ゆる\nさんぽ': ['park', 'tourist_attraction'],
     };
-
-    // 2. 根据用户选中的 filters，收集所有需要搜索的 type
-    //    如果用户没有选中任何 filter，默认不搜索任何地点 (或者您可以改为默认搜索 restaurant)
     final Set<String> targetTypes = {};
     for (final filter in widget.filters) {
       if (filterMapping.containsKey(filter)) {
         targetTypes.addAll(filterMapping[filter]!);
       }
     }
+    return targetTypes;
+  }
 
-    // 如果没有选中的类型，直接返回，不进行搜索
+  void _loadPlacesAlongRouteWeb(List<LatLng> points) {
+    final google = js.context['google'];
+    if (google == null) {
+      return;
+    }
+    final maps = (google as js.JsObject)['maps'];
+    if (maps == null) {
+      return;
+    }
+    final placesNs = maps['places'];
+    if (placesNs == null) {
+      return;
+    }
+    final serviceCtor = placesNs['PlacesService'];
+    if (serviceCtor == null) {
+      return;
+    }
+    final container = html.DivElement();
+    final service = js.JsObject(serviceCtor as js.JsFunction, [container]);
+    final targetTypes = _buildTargetTypes();
+    if (targetTypes.isEmpty) {
+      return;
+    }
+    for (final p in points) {
+      for (final type in targetTypes) {
+        final location = js.JsObject.jsify({
+          'lat': p.latitude,
+          'lng': p.longitude,
+        });
+        final request = js.JsObject.jsify({
+          'location': location,
+          'radius': 300,
+          'type': type,
+          'openNow': true,
+        });
+        service.callMethod('nearbySearch', [
+          request,
+          (results, status, [pagination]) {
+            if (status != 'OK') {
+              return;
+            }
+            if (results == null || !mounted) {
+              return;
+            }
+            final list = results as List;
+            if (list.isEmpty) {
+              return;
+            }
+            final newMarkers = <Marker>{};
+            for (var i = 0; i < list.length; i++) {
+              final place = list[i] as js.JsObject;
+              final ratingValue = place['rating'];
+              final rating = ratingValue is num ? ratingValue.toDouble() : 0.0;
+              if (rating < 3.0) {
+                continue;
+              }
+              final geometry = place['geometry'];
+              if (geometry == null) {
+                continue;
+              }
+              final loc = geometry['location'] as js.JsObject?;
+              if (loc == null) {
+                continue;
+              }
+              final lat = loc.callMethod('lat') as num;
+              final lng = loc.callMethod('lng') as num;
+              final idValue = place['place_id'];
+              final nameValue = place['name'];
+              final id =
+                  idValue != null ? idValue.toString() : '${lat}_${lng}_$type';
+              final name = nameValue != null ? nameValue.toString() : '';
+              newMarkers.add(
+                Marker(
+                  markerId: MarkerId(id),
+                  position: LatLng(lat.toDouble(), lng.toDouble()),
+                  infoWindow: InfoWindow(
+                    title: name,
+                    snippet: '⭐$rating ($type)',
+                  ),
+                  icon: BitmapDescriptor.defaultMarkerWithHue(
+                    type == 'park'
+                        ? BitmapDescriptor.hueGreen
+                        : BitmapDescriptor.hueRed,
+                  ),
+                ),
+              );
+            }
+            if (newMarkers.isEmpty || !mounted) {
+              return;
+            }
+            setState(() {
+              _markers.addAll(newMarkers);
+            });
+          },
+        ]);
+      }
+    }
+  }
+
+  Future<void> _getPlacesAlongRoute(List<LatLng> points) async {
+    final targetTypes = _buildTargetTypes();
     if (targetTypes.isEmpty) return;
 
-    // 3. 对路线上的采样点进行搜索
     for (final p in points) {
-      // 遍历所有需要搜索的类型 (注意：Places API 一次请求只能搜一种 type，或者不用 type 用 keyword)
-      // 为了简化，这里我们对每种 type 发起一次请求，或者只取第一个 type 搜索
-      // 优化方案：这里演示简单遍历搜索第一个匹配的 type
-      
       for (final type in targetTypes) {
          final url =
             'https://maps.googleapis.com/maps/api/place/nearbysearch/json'
