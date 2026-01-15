@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:hm_shop/components/step_counter.dart';
 import 'package:hm_shop/components/weekly_distance_chart.dart';
 import 'package:hm_shop/components/walk_map_widget.dart';
+import 'package:hm_shop/components/weather.dart';
 import 'package:provider/provider.dart';
 import 'package:hm_shop/services/auth_service.dart';
 
@@ -263,42 +264,9 @@ class _MainPageState extends State<MainPage> {
 }
 
   Widget _weatherArea() {
-    return Container(
-      padding: const EdgeInsets.all(8),
-      decoration: _border(),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text('天気予報'),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Expanded(
-                child: Container(
-                  height: 100,
-                  decoration: _border(),
-                  alignment: Alignment.center,
-                  child: const Text('降水量'),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Column(
-                children: const [
-                  Text('場所'),
-                  SizedBox(height: 8),
-                  Text('X℃'),
-                  SizedBox(height: 4),
-                  Text('高℃ / 低℃'),
-                  SizedBox(height: 4),
-                  Text('天気'),
-                ],
-              )
-            ],
-          ),
-          const SizedBox(height: 8),
-          const Text('今日のさんぽは〇〇'),
-        ],
-      ),
+    return WeatherPanel(
+      originName: _currentOrigin,
+      destinationName: _currentDestination,
     );
   }
 
