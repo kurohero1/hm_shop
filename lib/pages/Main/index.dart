@@ -157,9 +157,9 @@ class _MainPageState extends State<MainPage> {
           child: Row(
             children: [
               const SizedBox(width: 8),
-              _filterChip('買い物さんぽ', icon: Icons.shopping_bag),
-              const SizedBox(width: 8),
               _filterChip('絞り込み', icon: Icons.filter_list),
+              const SizedBox(width: 8),
+              _filterChip('買い物さんぽ', icon: Icons.shopping_bag),
               const SizedBox(width: 8),
               _filterChip('グルメ\nさんぽ', isMultiLine: true),
               const SizedBox(width: 8),
