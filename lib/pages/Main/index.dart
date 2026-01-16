@@ -298,14 +298,24 @@ class _MainPageState extends State<MainPage> {
   }
 
   Widget _stepAndGraphArea() {
-  return Row(
-    children: const [
-      Expanded(child: StepCounter()),
-      SizedBox(width: 8),
-      Expanded(child: WeeklyDistanceChart()),
-    ],
-  );
-}
+    final width = MediaQuery.of(context).size.width;
+    if (width < 600) {
+      return Column(
+        children: const [
+          StepCounter(),
+          SizedBox(height: 8),
+          WeeklyDistanceChart(),
+        ],
+      );
+    }
+    return Row(
+      children: const [
+        Expanded(child: StepCounter()),
+        SizedBox(width: 8),
+        Expanded(child: WeeklyDistanceChart()),
+      ],
+    );
+  }
 
   Widget _weatherArea() {
     return WeatherPanel(
