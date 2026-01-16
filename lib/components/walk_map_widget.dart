@@ -85,7 +85,7 @@ class _WalkMapWidgetState extends State<WalkMapWidget> {
     if (_apiKey.isEmpty) {
       setState(() {
         _loading = false;
-        _errorMessage = 'API key 未配置';
+        _errorMessage = 'API キーが設定されていません';
       });
       return;
     }
@@ -95,7 +95,7 @@ class _WalkMapWidgetState extends State<WalkMapWidget> {
       if (route.isEmpty) {
         setState(() {
           _loading = false;
-          _errorMessage = '未找到路线';
+          _errorMessage = 'ルートが見つかりませんでした';
         });
         return;
       }
@@ -132,7 +132,7 @@ class _WalkMapWidgetState extends State<WalkMapWidget> {
       if (mounted) {
         setState(() {
           _loading = false;
-          _errorMessage = '加载失败: $e';
+          _errorMessage = '読み込みに失敗しました: $e';
         });
       }
     }

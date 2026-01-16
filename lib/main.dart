@@ -30,7 +30,7 @@ Future<void> main() async {
       MaterialApp(
         home: Scaffold(
           body: Center(
-            child: Text('Firebase 初始化失败: $e'),
+            child: Text('Firebase の初期化に失敗しました: $e'),
           ),
         ),
       ),
