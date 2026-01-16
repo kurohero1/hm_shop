@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:hm_shop/components/step_counter.dart';
 import 'package:hm_shop/components/weekly_distance_chart.dart';
-import 'package:hm_shop/components/walk_map_widget.dart';
+import 'package:hm_shop/components/walk_map_widget_stub.dart'
+    if (dart.library.html) 'package:hm_shop/components/walk_map_widget.dart';
 import 'package:hm_shop/components/weather.dart';
 import 'package:provider/provider.dart';
 import 'package:hm_shop/services/auth_service.dart';
@@ -30,9 +31,9 @@ class _MainPageState extends State<MainPage> {
   final FocusNode _destFocus = FocusNode();
 
   // 当前地图使用的起点和终点（默认值）
-  String _currentOrigin = '関屋駅';
+  String _currentOrigin = '';
   String _currentWaypoint = ''; // 当前经由地
-  String _currentDestination = '新潟県警察本部';
+  String _currentDestination = '';
 
   double? _originLat;
   double? _originLon;
@@ -78,7 +79,9 @@ class _MainPageState extends State<MainPage> {
     final dest = _destController.text.trim();
 
     if (origin.isNotEmpty && dest.isNotEmpty) {
-      if (origin != _currentOrigin || waypoint != _currentWaypoint || dest != _currentDestination) {
+      if (origin != _currentOrigin ||
+          waypoint != _currentWaypoint ||
+          dest != _currentDestination) {
         setState(() {
           _currentOrigin = origin;
           _currentWaypoint = waypoint;
@@ -87,6 +90,21 @@ class _MainPageState extends State<MainPage> {
           _originLon = null;
           _destinationLat = null;
           _destinationLon = null;
+        });
+      }
+    } else {
+      if (_currentOrigin.isNotEmpty ||
+          _currentWaypoint.isNotEmpty ||
+          _currentDestination.isNotEmpty) {
+        setState(() {
+          _currentOrigin = '';
+          _currentWaypoint = '';
+          _currentDestination = '';
+          _originLat = null;
+          _originLon = null;
+          _destinationLat = null;
+          _destinationLon = null;
+          _systemComment = '';
         });
       }
     }
@@ -120,12 +138,6 @@ class _MainPageState extends State<MainPage> {
             _stepAndGraphArea(),
             const SizedBox(height: 12),
             _weatherArea(),
-            const SizedBox(height: 8),
-            if (_systemComment.isNotEmpty)
-              Text(
-                '↑ $_systemComment',
-                style: const TextStyle(color: Colors.red),
-              ),
           ],
         ),
       ),
@@ -252,13 +264,27 @@ class _MainPageState extends State<MainPage> {
   }
 
   Widget _mapArea() {
+    if (_currentOrigin.isEmpty || _currentDestination.isEmpty) {
+      return Container(
+        height: 250,
+        width: double.infinity,
+        decoration: _border().copyWith(color: Colors.white),
+        child: const Center(
+          child: Text(
+            '上の始発と終点を入力すると\nルート地図が表示されます',
+            textAlign: TextAlign.center,
+          ),
+        ),
+      );
+    }
+
     return SizedBox(
       height: 250,
       child: WalkMapWidget(
         origin: _currentOrigin,
         destination: _currentDestination,
         waypoint: _currentWaypoint,
-        filters: Set.from(_selectedFilters), // 传递副本，确保 didUpdateWidget 能检测到变化
+        filters: Set.from(_selectedFilters),
         onRouteEndpointsChanged: (originPoint, destinationPoint) {
           setState(() {
             _originLat = originPoint.latitude;

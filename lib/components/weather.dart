@@ -91,6 +91,7 @@ class _WeatherPanelState extends State<WeatherPanel> {
   _PlaceWeather? _waypointWeather;
   _PlaceWeather? _destinationWeather;
   Timer? _timer;
+  String _systemComment = '';
 
   @override
   void initState() {
@@ -167,10 +168,10 @@ class _WeatherPanelState extends State<WeatherPanel> {
         _waypointWeather = _pickBetterWeather(_waypointWeather, results[1]);
         _destinationWeather =
             _pickBetterWeather(_destinationWeather, results[2]);
+        _systemComment = _buildSystemComment();
       });
-      final comment = _buildSystemComment();
       if (widget.onSystemCommentChanged != null) {
-        widget.onSystemCommentChanged!(comment);
+        widget.onSystemCommentChanged!(_systemComment);
       }
     } catch (_) {}
   }
@@ -544,6 +545,13 @@ class _WeatherPanelState extends State<WeatherPanel> {
             '天気予報',
             style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
+          if (_systemComment.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(
+              _systemComment,
+              style: const TextStyle(color: Colors.red),
+            ),
+          ],
           const SizedBox(height: 12),
           Row(
             children: [

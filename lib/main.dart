@@ -1,19 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:flutter/foundation.dart';
 import 'package:hm_shop/pages/Main/index.dart';
 import 'package:hm_shop/pages/Login/index.dart';
 import 'package:hm_shop/services/step_service.dart';
 import 'package:hm_shop/services/auth_service.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'firebase_options.dart';
+import 'firebase_options_stub.dart'
+    if (dart.library.js) 'firebase_options.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   try {
-    await Firebase.initializeApp(
-      options: webFirebaseOptions,
-    );
+    if (kIsWeb) {
+      await Firebase.initializeApp(
+        options: webFirebaseOptions,
+      );
+    } else {
+      await Firebase.initializeApp();
+    }
     runApp(
       MultiProvider(
         providers: [
