@@ -34,6 +34,12 @@ class _MainPageState extends State<MainPage> {
   String _currentWaypoint = ''; // 当前经由地
   String _currentDestination = '新潟県警察本部';
 
+  double? _originLat;
+  double? _originLon;
+  double? _destinationLat;
+  double? _destinationLon;
+  String _systemComment = '';
+
   @override
   void initState() {
     super.initState();
@@ -72,12 +78,15 @@ class _MainPageState extends State<MainPage> {
     final dest = _destController.text.trim();
 
     if (origin.isNotEmpty && dest.isNotEmpty) {
-      // 只有当值发生变化时才更新状态
       if (origin != _currentOrigin || waypoint != _currentWaypoint || dest != _currentDestination) {
         setState(() {
           _currentOrigin = origin;
           _currentWaypoint = waypoint;
           _currentDestination = dest;
+          _originLat = null;
+          _originLon = null;
+          _destinationLat = null;
+          _destinationLon = null;
         });
       }
     }
@@ -112,10 +121,11 @@ class _MainPageState extends State<MainPage> {
             const SizedBox(height: 12),
             _weatherArea(),
             const SizedBox(height: 8),
-            const Text(
-              '↑ システムコメント（傘を持って行ったほうがいいかもなど）',
-              style: TextStyle(color: Colors.red),
-            ),
+            if (_systemComment.isNotEmpty)
+              Text(
+                '↑ $_systemComment',
+                style: const TextStyle(color: Colors.red),
+              ),
           ],
         ),
       ),
@@ -249,6 +259,14 @@ class _MainPageState extends State<MainPage> {
         destination: _currentDestination,
         waypoint: _currentWaypoint,
         filters: Set.from(_selectedFilters), // 传递副本，确保 didUpdateWidget 能检测到变化
+        onRouteEndpointsChanged: (originPoint, destinationPoint) {
+          setState(() {
+            _originLat = originPoint.latitude;
+            _originLon = originPoint.longitude;
+            _destinationLat = destinationPoint.latitude;
+            _destinationLon = destinationPoint.longitude;
+          });
+        },
       ),
     );
   }
@@ -266,7 +284,17 @@ class _MainPageState extends State<MainPage> {
   Widget _weatherArea() {
     return WeatherPanel(
       originName: _currentOrigin,
+      waypointName: _currentWaypoint,
       destinationName: _currentDestination,
+      originLat: _originLat,
+      originLon: _originLon,
+      destinationLat: _destinationLat,
+      destinationLon: _destinationLon,
+      onSystemCommentChanged: (text) {
+        setState(() {
+          _systemComment = text;
+        });
+      },
     );
   }
 

@@ -45,11 +45,23 @@ class MyHomePage extends StatelessWidget {
 class WeatherPanel extends StatefulWidget {
   final String originName;
   final String destinationName;
+  final String waypointName;
+  final double? originLat;
+  final double? originLon;
+  final double? destinationLat;
+  final double? destinationLon;
+  final void Function(String)? onSystemCommentChanged;
 
   const WeatherPanel({
     super.key,
     required this.originName,
     required this.destinationName,
+    this.waypointName = '',
+    this.originLat,
+    this.originLon,
+    this.destinationLat,
+    this.destinationLon,
+    this.onSystemCommentChanged,
   });
 
   @override
@@ -76,6 +88,7 @@ class _PlaceWeather {
 
 class _WeatherPanelState extends State<WeatherPanel> {
   _PlaceWeather? _originWeather;
+  _PlaceWeather? _waypointWeather;
   _PlaceWeather? _destinationWeather;
   Timer? _timer;
 
@@ -98,30 +111,159 @@ class _WeatherPanelState extends State<WeatherPanel> {
   void didUpdateWidget(covariant WeatherPanel oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.originName != widget.originName ||
-        oldWidget.destinationName != widget.destinationName) {
+        oldWidget.waypointName != widget.waypointName ||
+        oldWidget.destinationName != widget.destinationName ||
+        oldWidget.originLat != widget.originLat ||
+        oldWidget.originLon != widget.originLon ||
+        oldWidget.destinationLat != widget.destinationLat ||
+        oldWidget.destinationLon != widget.destinationLon) {
       _loadAllWeather();
     }
   }
 
+  bool _hasMeaningfulData(_PlaceWeather? w) {
+    if (w == null) return false;
+    if (w.nowTemp != null) return true;
+    if (w.maxTemp != null) return true;
+    if (w.minTemp != null) return true;
+    if (w.weatherJa.isNotEmpty) return true;
+    return false;
+  }
+
+  _PlaceWeather? _pickBetterWeather(_PlaceWeather? oldValue, _PlaceWeather? newValue) {
+    if (newValue == null) return oldValue;
+    if (!_hasMeaningfulData(newValue) && _hasMeaningfulData(oldValue)) {
+      return oldValue;
+    }
+    return newValue;
+  }
+
   Future<void> _loadAllWeather() async {
     final origin = widget.originName.trim();
+    final waypoint = widget.waypointName.trim();
     final destination = widget.destinationName.trim();
-    if (origin.isEmpty && destination.isEmpty) {
+    if (origin.isEmpty && waypoint.isEmpty && destination.isEmpty) {
       return;
     }
     try {
-      final originFuture = _fetchPlaceWeather(origin);
-      final destinationFuture = _fetchPlaceWeather(destination);
+      final originFuture = widget.originLat != null && widget.originLon != null
+          ? _fetchWeatherByCoords(origin, widget.originLat!, widget.originLon!)
+          : _fetchPlaceWeather(origin);
+      final waypointFuture =
+          waypoint.isNotEmpty ? _fetchPlaceWeather(waypoint) : Future.value(null);
+      final destinationFuture =
+          widget.destinationLat != null && widget.destinationLon != null
+              ? _fetchWeatherByCoords(
+                  destination, widget.destinationLat!, widget.destinationLon!)
+              : _fetchPlaceWeather(destination);
       final results = await Future.wait<_PlaceWeather?>([
         originFuture,
+        waypointFuture,
         destinationFuture,
       ]);
       if (!mounted) return;
       setState(() {
-        _originWeather = results[0];
-        _destinationWeather = results[1];
+        _originWeather = _pickBetterWeather(_originWeather, results[0]);
+        _waypointWeather = _pickBetterWeather(_waypointWeather, results[1]);
+        _destinationWeather =
+            _pickBetterWeather(_destinationWeather, results[2]);
       });
+      final comment = _buildSystemComment();
+      if (widget.onSystemCommentChanged != null) {
+        widget.onSystemCommentChanged!(comment);
+      }
     } catch (_) {}
+  }
+
+  String _buildSystemComment() {
+    _PlaceWeather? target;
+    if (_hasMeaningfulData(_destinationWeather)) {
+      target = _destinationWeather;
+    } else if (_hasMeaningfulData(_waypointWeather)) {
+      target = _waypointWeather;
+    } else if (_hasMeaningfulData(_originWeather)) {
+      target = _originWeather;
+    } else {
+      return '';
+    }
+
+    final t = target!;
+    final now = t.nowTemp;
+    final maxT = t.maxTemp;
+    final minT = t.minTemp;
+    final desc = t.weatherJa;
+
+    if (desc.contains('雨')) {
+      return '雨の可能性があります。傘を持って行ったほうがいいかもしれません。';
+    }
+    if (desc.contains('雪')) {
+      return '雪の予報です。足元に注意してください。';
+    }
+    if ((maxT ?? now ?? 0) >= 30) {
+      return '気温が高めです。こまめに水分補給をして熱中症に注意しましょう。';
+    }
+    if ((minT ?? now ?? 100) <= 0) {
+      return '気温がかなり低いです。暖かい服装でお出かけください。';
+    }
+    if (desc.contains('霧')) {
+      return '霧の可能性があります。視界に注意して行動してください。';
+    }
+    return 'お出かけしやすい天気です。無理のないペースでさんぽを楽しみましょう。';
+  }
+
+  Future<_PlaceWeather?> _fetchWeatherByCoords(
+      String query, double lat, double lon) async {
+    final displayName = query;
+    final url = Uri.parse(
+      'https://api.open-meteo.com/v1/forecast'
+      '?latitude=$lat'
+      '&longitude=$lon'
+      '&current_weather=true'
+      '&daily=weathercode,temperature_2m_max,temperature_2m_min'
+      '&timezone=Asia/Tokyo',
+    );
+
+    final response = await http.get(url);
+    if (response.statusCode != 200) {
+      return _PlaceWeather(
+        query: query,
+        displayName: displayName,
+        nowTemp: null,
+        maxTemp: null,
+        minTemp: null,
+        weatherJa: '',
+      );
+    }
+
+    final data = jsonDecode(response.body);
+    final daily = data['daily'];
+    final current = data['current_weather'];
+    if (daily == null || current == null) {
+      return _PlaceWeather(
+        query: query,
+        displayName: displayName,
+        nowTemp: null,
+        maxTemp: null,
+        minTemp: null,
+        weatherJa: '',
+      );
+    }
+
+    final maxTemp = (daily['temperature_2m_max'][0] as num).toDouble();
+    final minTemp = (daily['temperature_2m_min'][0] as num).toDouble();
+    final nowTemp = (current['temperature'] as num).toDouble();
+    final int weatherCode = current['weathercode'];
+
+    final weatherJa = _weatherCodeToJa(weatherCode);
+
+    return _PlaceWeather(
+      query: query,
+      displayName: displayName,
+      nowTemp: nowTemp,
+      maxTemp: maxTemp,
+      minTemp: minTemp,
+      weatherJa: weatherJa,
+    );
   }
 
   Future<_PlaceWeather?> _fetchPlaceWeather(String query) async {
@@ -153,6 +295,22 @@ class _WeatherPanelState extends State<WeatherPanel> {
       final adminPart = trimmed.substring(0, cutIndex).trim();
       if (adminPart.isNotEmpty) {
         candidateSet.add(adminPart);
+      }
+    }
+    for (final token in adminTokens) {
+      final idx = trimmed.indexOf(token);
+      if (idx != -1) {
+        final end = idx + token.length;
+        final head = trimmed.substring(0, end).trim();
+        if (head.isNotEmpty) {
+          candidateSet.add(head);
+        }
+        if (end < trimmed.length) {
+          final tail = trimmed.substring(end).trim();
+          if (tail.isNotEmpty) {
+            candidateSet.add(tail);
+          }
+        }
       }
     }
     if (!trimmed.contains('駅') && trimmed.length <= 3) {
@@ -394,6 +552,14 @@ class _WeatherPanelState extends State<WeatherPanel> {
                   '出発地',
                   widget.originName,
                   _originWeather,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildPlaceColumn(
+                  '経由地',
+                  widget.waypointName,
+                  _waypointWeather,
                 ),
               ),
               const SizedBox(width: 12),

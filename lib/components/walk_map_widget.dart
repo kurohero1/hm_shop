@@ -17,6 +17,7 @@ class WalkMapWidget extends StatefulWidget {
   final String destination;
   final String? waypoint; // 新增：经由地
   final Set<String> filters;
+  final void Function(LatLng origin, LatLng destination)? onRouteEndpointsChanged;
 
   const WalkMapWidget({
     super.key,
@@ -24,6 +25,7 @@ class WalkMapWidget extends StatefulWidget {
     required this.destination,
     this.waypoint,
     required this.filters,
+    this.onRouteEndpointsChanged,
   });
 
   @override
@@ -101,6 +103,11 @@ class _WalkMapWidgetState extends State<WalkMapWidget> {
       }
 
       if (mounted) {
+        if (widget.onRouteEndpointsChanged != null) {
+          final originPoint = route.first;
+          final destinationPoint = route.last;
+          widget.onRouteEndpointsChanged!(originPoint, destinationPoint);
+        }
         setState(() {
           _polylines.add(
             Polyline(
