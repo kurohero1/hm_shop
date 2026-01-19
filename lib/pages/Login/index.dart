@@ -15,6 +15,7 @@ class _LoginPageState extends State<LoginPage> {
   final _passwordController = TextEditingController();
   bool _loading = false;
   String? _error;
+  String? _info;
   bool _isRegister = false;
   int _resendCooldown = 0;
   Timer? _resendTimer;
@@ -31,28 +32,46 @@ class _LoginPageState extends State<LoginPage> {
     setState(() {
       _loading = true;
       _error = null;
+      _info = null;
     });
     final auth = context.read<AuthService>();
     final email = _emailController.text.trim();
     final password = _passwordController.text;
+    if (_isRegister && password.length < 6) {
+      setState(() {
+        _loading = false;
+        _error = 'パスワードは６文字以上で設定してください。';
+        _info = null;
+      });
+      return;
+    }
     bool ok;
     if (_isRegister) {
       ok = await auth.register(email, password);
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _error = ok
-            ? '登録用の確認メールを送信しました。メールを確認してからログインしてください'
-            : '登録に失敗しました。メールアドレスが既に使われている可能性があります';
+        if (ok) {
+          _info = '登録用の確認メールを送信しました。メールを確認してからログインしてください。';
+          _error = null;
+        } else {
+          _error = '登録に失敗しました。メールアドレスが既に使われている可能性があります。';
+          _info = null;
+        }
       });
     } else {
       ok = await auth.signIn(email, password);
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _error = ok
-            ? null
-            : 'ログインに失敗しました。メールアドレス・パスワード、メール認証状態を確認してください';
+        if (ok) {
+          _error = null;
+          _info = null;
+        } else {
+          _error =
+              'ログインに失敗しました。メールアドレス、パスワード、メール認証状態を確認してください。';
+          _info = null;
+        }
       });
     }
   }
@@ -61,15 +80,20 @@ class _LoginPageState extends State<LoginPage> {
     setState(() {
       _loading = true;
       _error = null;
+      _info = null;
     });
     final email = _emailController.text.trim();
     final ok = await context.read<AuthService>().requestPasswordReset(email);
     if (!mounted) return;
     setState(() {
       _loading = false;
-      _error = ok
-          ? 'パスワード再設定用のリンクを送信しました'
-          : '再設定に失敗しました。メールアドレスをご確認ください';
+      if (ok) {
+        _info = 'パスワード再設定用のリンクを送信しました。';
+        _error = null;
+      } else {
+        _error = '再設定に失敗しました。メールアドレスをご確認ください。';
+        _info = null;
+      }
     });
   }
 
@@ -272,6 +296,7 @@ class _LoginPageState extends State<LoginPage> {
                         setState(() {
                           _isRegister = !_isRegister;
                           _error = null;
+                          _info = null;
                         });
                       },
                 style: TextButton.styleFrom(
@@ -296,6 +321,16 @@ class _LoginPageState extends State<LoginPage> {
               ),
             ],
           ),
+          if (_info != null) ...[
+            const SizedBox(height: 10),
+            Text(
+              _info!,
+              style: const TextStyle(
+                color: Color(0xFFB3FFB3),
+                fontSize: 12,
+              ),
+            ),
+          ],
           if (_error != null) ...[
             const SizedBox(height: 10),
             Text(
@@ -308,40 +343,49 @@ class _LoginPageState extends State<LoginPage> {
             const SizedBox(height: 6),
             Align(
               alignment: Alignment.centerRight,
-              child: TextButton(
-                onPressed: (_loading || _resendCooldown > 0)
-                    ? null
-                    : () async {
-                        setState(() {
-                          _loading = true;
-                        });
-                        final ok = await context.read<AuthService>().resendVerificationEmail(
-                              _emailController.text.trim(),
-                              _passwordController.text,
-                            );
-                        if (!mounted) return;
-                        setState(() {
-                          _loading = false;
-                          _error = ok
-                              ? '確認メールを再送しました。メールをご確認ください'
-                              : '再送に失敗しました。メールアドレス・パスワードをご確認ください';
-                          _resendCooldown = 60;
-                        });
-                        _resendTimer?.cancel();
-                        _resendTimer = Timer.periodic(const Duration(seconds: 1), (t) {
-                          if (!mounted) {
-                            t.cancel();
-                            return;
-                          }
+                child: TextButton(
+                  onPressed: (_loading || _resendCooldown > 0)
+                      ? null
+                      : () async {
                           setState(() {
-                            _resendCooldown -= 1;
-                            if (_resendCooldown <= 0) {
-                              t.cancel();
+                            _loading = true;
+                          });
+                          final ok = await context.read<AuthService>().resendVerificationEmail(
+                                _emailController.text.trim(),
+                                _passwordController.text,
+                              );
+                          if (!mounted) return;
+                          setState(() {
+                            _loading = false;
+                            if (ok) {
+                              _info = '確認メールを再送しました。メールをご確認ください。';
+                              _error = null;
+                              _resendCooldown = 60;
+                            } else {
+                              _error =
+                                  '再送に失敗しました。メールアドレス、パスワードをご確認ください。';
+                              _info = null;
                               _resendCooldown = 0;
                             }
                           });
-                        });
-                      },
+                          _resendTimer?.cancel();
+                          if (ok) {
+                            _resendTimer =
+                                Timer.periodic(const Duration(seconds: 1), (t) {
+                              if (!mounted) {
+                                t.cancel();
+                                return;
+                              }
+                              setState(() {
+                                _resendCooldown -= 1;
+                                if (_resendCooldown <= 0) {
+                                  t.cancel();
+                                  _resendCooldown = 0;
+                                }
+                              });
+                            });
+                          }
+                        },
                 style: TextButton.styleFrom(
                   foregroundColor: Colors.white70,
                 ),

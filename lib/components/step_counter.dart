@@ -20,6 +20,10 @@ class _StepCounterState extends State<StepCounter> {
   void initState() {
     super.initState();
     _initPedometer();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      context.read<StepService>().setSelectedDate(_selectedDate);
+    });
   }
   
   @override
@@ -71,6 +75,7 @@ class _StepCounterState extends State<StepCounter> {
       setState(() {
         _selectedDate = picked;
       });
+      context.read<StepService>().setSelectedDate(picked);
     }
   }
   
@@ -86,6 +91,20 @@ class _StepCounterState extends State<StepCounter> {
     }
   }
 
+  String _formatSteps(int steps) {
+    final s = steps.toString();
+    if (s.length <= 7) {
+      return s;
+    }
+    if (steps >= 100000000) {
+      return '${(steps / 100000000).toStringAsFixed(1)}億+';
+    }
+    if (steps >= 10000) {
+      return '${(steps / 10000).toStringAsFixed(1)}万+';
+    }
+    return s.substring(0, 7);
+  }
+
   @override
   Widget build(BuildContext context) {
     // 从 Service 获取选中日期的步数
@@ -99,6 +118,8 @@ class _StepCounterState extends State<StepCounter> {
     
     final displaySteps = savedSteps;
     final km = (displaySteps * 0.7 / 1000).toStringAsFixed(2);
+    final displayStepsText = _formatSteps(displaySteps);
+    final kmText = '$km km';
     final dateStr = "${_selectedDate.year}/${_selectedDate.month}/${_selectedDate.day}";
 
     return Container(
@@ -122,26 +143,37 @@ class _StepCounterState extends State<StepCounter> {
             ],
           ),
           const Divider(),
-          
-          // 中间：步数显示
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.baseline,
-            textBaseline: TextBaseline.alphabetic,
-            children: [
-              Text(
-                '$displaySteps',
-                style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.green),
+
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.center,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.baseline,
+                textBaseline: TextBaseline.alphabetic,
+                children: [
+                  Text(
+                    displayStepsText,
+                    style: const TextStyle(
+                      fontSize: 32,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.green,
+                    ),
+                  ),
+                  const Text(' 歩', style: TextStyle(fontSize: 14)),
+                  const SizedBox(width: 16),
+                  Text(
+                    kmText,
+                    style: const TextStyle(fontSize: 14, color: Colors.grey),
+                  ),
+                ],
               ),
-              const Text(' 歩', style: TextStyle(fontSize: 14)),
-              const SizedBox(width: 16),
-              Text(
-                '$km km',
-                style: const TextStyle(fontSize: 14, color: Colors.grey),
-              ),
-            ],
+            ),
           ),
-          
+
           const SizedBox(height: 8),
           
           // 底部：手动输入

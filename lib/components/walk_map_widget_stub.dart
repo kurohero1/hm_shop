@@ -34,4 +34,3 @@ class WalkMapWidget extends StatelessWidget {
     );
   }
 }
-

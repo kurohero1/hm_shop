@@ -40,6 +40,7 @@ class _MainPageState extends State<MainPage> {
   double? _destinationLat;
   double? _destinationLon;
   String _systemComment = '';
+  bool _filtersCollapsed = false;
 
   @override
   void initState() {
@@ -164,22 +165,73 @@ class _MainPageState extends State<MainPage> {
         ),
         const SizedBox(height: 12),
         // 第二行：筛选标签
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            children: [
-              const SizedBox(width: 8),
-              _filterChip('絞り込み', icon: Icons.filter_list),
-              const SizedBox(width: 8),
-              _filterChip('買い物さんぽ', icon: Icons.shopping_bag),
-              const SizedBox(width: 8),
-              _filterChip('グルメ\nさんぽ', isMultiLine: true),
-              const SizedBox(width: 8),
-              _filterChip('ゆる\nさんぽ', isMultiLine: true),
-              const SizedBox(width: 8),
-              _filterChip('甘味\nさんぽ', isMultiLine: true),
-            ],
-          ),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(width: 8),
+            GestureDetector(
+              onTap: () {
+                setState(() {
+                  _filtersCollapsed = !_filtersCollapsed;
+                });
+              },
+              child: SizedBox(
+                height: 40,
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  constraints: const BoxConstraints(minWidth: 60),
+                  decoration: _border().copyWith(
+                    color: Colors.white,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 2,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        _filtersCollapsed ? Icons.arrow_forward_ios : Icons.arrow_back_ios,
+                        size: 14,
+                        color: mainGreen,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            if (!_filtersCollapsed)
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.only(left: 8),
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      _filterChip('買い物さんぽ', icon: Icons.shopping_bag),
+                      _filterChip('グルメ\nさんぽ', isMultiLine: true),
+                      _filterChip('ゆる\nさんぽ', isMultiLine: true),
+                      _filterChip('甘味\nさんぽ', isMultiLine: true),
+                      _filterChip('高評価重視', icon: Icons.star),
+                      _filterChip('リーズナブル重視', icon: Icons.attach_money),
+                      _filterChip('コンビニのみ', icon: Icons.store),
+                      if (_selectedFilters.contains('コンビニのみ')) ...[
+                        _filterChip('セブン'),
+                        _filterChip('ファミマ'),
+                        _filterChip('ローソン'),
+                      ],
+                      _filterChip('30m以内'),
+                      _filterChip('50m以内'),
+                    ],
+                  ),
+                ),
+              ),
+          ],
         ),
       ],
     );
@@ -213,51 +265,74 @@ class _MainPageState extends State<MainPage> {
 
   Widget _filterChip(String label, {IconData? icon, bool isMultiLine = false}) {
     final isSelected = _selectedFilters.contains(label);
+    final double chipHeight = 40;
+    final double minWidth = isMultiLine ? 120 : 80;
+    final double verticalPadding = isMultiLine ? 4 : 8;
 
     return GestureDetector(
       onTap: () {
         setState(() {
           if (isSelected) {
             _selectedFilters.remove(label);
+            if (label == 'コンビニのみ') {
+              _selectedFilters.remove('セブン');
+              _selectedFilters.remove('ファミマ');
+              _selectedFilters.remove('ローソン');
+            }
           } else {
+            if (label == '30m以内') {
+              _selectedFilters.remove('50m以内');
+            } else if (label == '50m以内') {
+              _selectedFilters.remove('30m以内');
+            }
             _selectedFilters.add(label);
           }
         });
       },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: _border().copyWith(
-          color: isSelected ? mainGreen : Colors.white,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 2,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (icon != null) ...[
-              Icon(
-                icon,
-                size: 18,
-                color: isSelected ? Colors.white : mainGreen,
+      child: SizedBox(
+        height: chipHeight,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: EdgeInsets.symmetric(horizontal: 12, vertical: verticalPadding),
+          constraints: BoxConstraints(minWidth: minWidth),
+          decoration: _border().copyWith(
+            color: isSelected ? mainGreen : Colors.white,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 2,
+                offset: const Offset(0, 2),
               ),
-              const SizedBox(width: 4),
             ],
-            Text(
-              label,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-                color: isSelected ? Colors.white : Colors.grey[800],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (icon != null) ...[
+                Icon(
+                  icon,
+                  size: 18,
+                  color: isSelected ? Colors.white : mainGreen,
+                ),
+                const SizedBox(width: 4),
+              ],
+              Flexible(
+                child: Text(
+                  label,
+                  textAlign: TextAlign.center,
+                  softWrap: true,
+                  maxLines: isMultiLine ? 2 : 1,
+                  overflow: TextOverflow.visible,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: isSelected ? Colors.white : Colors.grey[800],
+                  ),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -271,7 +346,7 @@ class _MainPageState extends State<MainPage> {
         decoration: _border().copyWith(color: Colors.white),
         child: const Center(
           child: Text(
-            '上の始発と終点を入力すると\nルート地図が表示されます',
+            '上の始発と終点を入力すると\nルート地図が表示されます。',
             textAlign: TextAlign.center,
           ),
         ),

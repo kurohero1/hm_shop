@@ -7,8 +7,10 @@ class StepService extends ChangeNotifier {
   
   // 存储格式: {'2023-10-27': 5000, '2023-10-28': 7500}
   Map<String, int> _dailySteps = {};
+  DateTime _selectedDate = DateTime.now();
   
   Map<String, int> get dailySteps => _dailySteps;
+  DateTime get selectedDate => _selectedDate;
 
   StepService() {
     _loadData();
@@ -39,6 +41,18 @@ class StepService extends ChangeNotifier {
     return _dailySteps[_formatDate(date)] ?? 0;
   }
 
+  void setSelectedDate(DateTime date) {
+    _selectedDate = date;
+    notifyListeners();
+  }
+
+  Future<void> clearStepsForDate(DateTime date) async {
+    final key = _formatDate(date);
+    _dailySteps.remove(key);
+    notifyListeners();
+    await _saveToStorage();
+  }
+
   Future<void> clearAllData() async {
     _dailySteps.clear();
     notifyListeners();
@@ -65,9 +79,10 @@ class StepService extends ChangeNotifier {
     for (int i = 6; i >= 0; i--) {
       final date = today.subtract(Duration(days: i));
       final steps = getStepsForDate(date);
-      // 简单换算: 1步 = 0.7米 = 0.0007千米
+      // 简单换算: 1步 = 0.7米 = 0.0007千米，并保留两位小数
       final km = steps * 0.0007;
-      result.add(km);
+      final roundedKm = double.parse(km.toStringAsFixed(2));
+      result.add(roundedKm);
     }
     return result;
   }

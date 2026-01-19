@@ -549,7 +549,10 @@ class _WeatherPanelState extends State<WeatherPanel> {
             const SizedBox(height: 4),
             Text(
               _systemComment,
-              style: const TextStyle(color: Colors.red),
+              style: const TextStyle(
+                color: Color(0xFF2FA84F),
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ],
           const SizedBox(height: 12),

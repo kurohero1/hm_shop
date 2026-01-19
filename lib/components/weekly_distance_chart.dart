@@ -12,9 +12,10 @@ class WeeklyDistanceChart extends StatelessWidget {
     final stepService = context.watch<StepService>();
     final weeklyKm = stepService.getLast7DaysKm();
     final dayLabels = stepService.getLast7DaysLabels();
+    final totalKm = weeklyKm.fold<double>(0, (sum, v) => sum + v);
 
     return Container(
-      height: 150, // 稍微增加高度以容纳按钮
+      height: 210,
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
         border: Border.all(color: Colors.green),
@@ -23,60 +24,75 @@ class WeeklyDistanceChart extends StatelessWidget {
       child: Stack(
         children: [
           Column(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Expanded(
-                child: BarChart(
-                  BarChartData(
-                    alignment: BarChartAlignment.spaceAround,
-                    maxY: 10, // 固定最大值为 10km，或者可以根据数据动态计算
-                    titlesData: FlTitlesData(
-                      leftTitles: const AxisTitles(
-                        sideTitles: SideTitles(showTitles: false),
-                      ),
-                      rightTitles: const AxisTitles(
-                        sideTitles: SideTitles(showTitles: false),
-                      ),
-                      topTitles: const AxisTitles(
-                        sideTitles: SideTitles(showTitles: false),
-                      ),
-                      bottomTitles: AxisTitles(
-                        sideTitles: SideTitles(
-                          showTitles: true,
-                          getTitlesWidget: (value, _) {
-                            if (value < 0 || value >= dayLabels.length) return const Text('');
-                            return Padding(
-                              padding: const EdgeInsets.only(top: 4.0),
-                              child: Text(
-                                dayLabels[value.toInt()],
-                                style: const TextStyle(fontSize: 10),
-                              ),
-                            );
-                          },
-                        ),
+              SizedBox(
+                height: 130,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    PieChart(
+                      PieChartData(
+                        centerSpaceRadius: 32,
+                        sectionsSpace: 2,
+                        startDegreeOffset: -90,
+                        sections: _buildSections(weeklyKm, dayLabels, totalKm),
+                        borderData: FlBorderData(show: false),
                       ),
                     ),
-                    barGroups: List.generate(weeklyKm.length, (index) {
-                      return BarChartGroupData(
-                        x: index,
-                        barRods: [
-                          BarChartRodData(
-                            toY: weeklyKm[index],
-                            width: 8,
-                            borderRadius: BorderRadius.circular(2),
-                            color: Colors.green,
-                            backDrawRodData: BackgroundBarChartRodData(
-                              show: true,
-                              toY: 10,
-                              color: Colors.grey[200],
-                            ),
+                    Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text(
+                          '合計',
+                          style: TextStyle(fontSize: 10),
+                        ),
+                        Text(
+                          '${totalKm.toStringAsFixed(2)} km',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
                           ),
-                        ],
-                      );
-                    }),
-                    gridData: const FlGridData(show: false),
-                    borderData: FlBorderData(show: false),
-                  ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
+              ),
+              const SizedBox(height: 4),
+              const Text(
+                '直近7日',
+                style: TextStyle(fontSize: 11),
+              ),
+              const SizedBox(height: 4),
+              Wrap(
+                alignment: WrapAlignment.center,
+                spacing: 8,
+                runSpacing: 2,
+                children: [
+                  for (int i = 0; i < weeklyKm.length; i++)
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 8,
+                          height: 8,
+                          decoration: BoxDecoration(
+                            color: weeklyKm[i] > 0 ? _segmentColor(i) : Colors.grey[300],
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 2),
+                        Text(
+                          dayLabels[i],
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: weeklyKm[i] > 0 ? Colors.black87 : Colors.grey,
+                          ),
+                        ),
+                      ],
+                    ),
+                ],
               ),
             ],
           ),
@@ -85,23 +101,23 @@ class WeeklyDistanceChart extends StatelessWidget {
             top: 0,
             child: InkWell(
               onTap: () {
-                // 清空数据确认对话框
                 showDialog(
                   context: context,
                   builder: (ctx) => AlertDialog(
-                    title: const Text('データ消去'),
-                    content: const Text('全ての歩数データを消去しますか？'),
+                    title: const Text('データリセット'),
+                    content: const Text('現在表示中の日付の歩数だけリセットしますか？'),
                     actions: [
                       TextButton(
                         onPressed: () => Navigator.pop(ctx),
                         child: const Text('キャンセル'),
                       ),
                       TextButton(
-                        onPressed: () {
-                          stepService.clearAllData();
+                        onPressed: () async {
+                          final targetDate = stepService.selectedDate;
+                          await stepService.clearStepsForDate(targetDate);
                           Navigator.pop(ctx);
                         },
-                        child: const Text('消去', style: TextStyle(color: Colors.red)),
+                        child: const Text('リセット', style: TextStyle(color: Colors.red)),
                       ),
                     ],
                   ),
@@ -120,5 +136,57 @@ class WeeklyDistanceChart extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  Color _segmentColor(int index) {
+    final colors = [
+      Colors.green.shade700,
+      Colors.green.shade500,
+      Colors.green.shade300,
+      Colors.lightGreen.shade400,
+      Colors.lightGreen.shade600,
+      Colors.teal.shade400,
+      Colors.teal.shade700,
+    ];
+    return colors[index % colors.length];
+  }
+
+  List<PieChartSectionData> _buildSections(
+    List<double> weeklyKm,
+    List<String> dayLabels,
+    double totalKm,
+  ) {
+    if (totalKm == 0) {
+      return [
+        PieChartSectionData(
+          value: 1,
+          color: Colors.grey[300],
+          showTitle: false,
+        ),
+      ];
+    }
+
+    return List.generate(weeklyKm.length, (index) {
+      final value = weeklyKm[index];
+      if (value <= 0) {
+        return PieChartSectionData(
+          value: 0,
+          showTitle: false,
+          color: Colors.transparent,
+        );
+      }
+
+      final title = '${dayLabels[index]} ${value.toStringAsFixed(1)}';
+      return PieChartSectionData(
+        value: value,
+        color: _segmentColor(index),
+        title: title,
+        titleStyle: const TextStyle(
+          fontSize: 8,
+          color: Colors.white,
+        ),
+        titlePositionPercentageOffset: 0.7,
+      );
+    });
   }
 }
