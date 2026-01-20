@@ -41,6 +41,7 @@ class _MainPageState extends State<MainPage> {
   double? _destinationLon;
   String _systemComment = '';
   bool _filtersCollapsed = false;
+  final String _appVersion = 'v1.0.1'; // 版本号
 
   @override
   void initState() {
@@ -126,6 +127,30 @@ class _MainPageState extends State<MainPage> {
           ),
           const SizedBox(width: 8),
         ],
+      ),
+      drawer: Drawer(
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: [
+            DrawerHeader(
+              decoration: BoxDecoration(
+                color: mainGreen,
+              ),
+              child: const Text(
+                'Menu',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 24,
+                ),
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.info_outline),
+              title: const Text('バージョン情報'),
+              subtitle: Text(_appVersion),
+            ),
+          ],
+        ),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(12),
