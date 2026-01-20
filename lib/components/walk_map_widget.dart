@@ -65,6 +65,8 @@ class _WalkMapWidgetState extends State<WalkMapWidget> {
     return '';
   }
 
+  bool _hasShownNoResultToast = false;
+
   @override
   void didUpdateWidget(covariant WalkMapWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -80,6 +82,7 @@ class _WalkMapWidgetState extends State<WalkMapWidget> {
         _errorMessage = null;
         _routeDistance = null;
         _routeDuration = null;
+        _hasShownNoResultToast = false; // Reset toast flag
         _markers.clear();
         _polylines.clear();
       });
@@ -129,7 +132,7 @@ class _WalkMapWidgetState extends State<WalkMapWidget> {
       // Web 上直接调用 Places REST 也会遇到 CORS 限制，这里仅在非 Web 环境请求
       final sampled = _sampleRoute(route, 10);
       if (kIsWeb) {
-        _loadPlacesAlongRouteWeb(sampled);
+        await _loadPlacesAlongRouteWeb(sampled);
       } else {
         Future(() async {
           await _getPlacesAlongRoute(sampled, route);
@@ -138,6 +141,18 @@ class _WalkMapWidgetState extends State<WalkMapWidget> {
           }
         });
       }
+      
+      // Check if markers found
+      if (mounted && _markers.isEmpty && !_hasShownNoResultToast && widget.filters.isNotEmpty) {
+        _hasShownNoResultToast = true;
+        ScaffoldMessenger.of(context).showSnackBar(
+           SnackBar(
+             content: Text('お探しの条件では経路周辺に該当する${widget.filters.join('、 ')}が見つかりませんでした。ルートのみ表示します。'),
+             duration: const Duration(seconds: 4),
+           ),
+        );
+      }
+
     } catch (e) {
       debugPrint(e.toString());
       if (mounted) {
@@ -428,29 +443,42 @@ class _WalkMapWidgetState extends State<WalkMapWidget> {
     return false;
   }
 
-  void _loadPlacesAlongRouteWeb(List<LatLng> points) {
+  Future<void> _loadPlacesAlongRouteWeb(List<LatLng> points) async {
+    final completer = Completer<void>();
     final google = js.context['google'];
     if (google == null) {
-      return;
+      completer.complete();
+      return completer.future;
     }
     final maps = (google as js.JsObject)['maps'];
     if (maps == null) {
-      return;
+      completer.complete();
+      return completer.future;
     }
     final placesNs = maps['places'];
     if (placesNs == null) {
-      return;
+      completer.complete();
+      return completer.future;
     }
     final serviceCtor = placesNs['PlacesService'];
     if (serviceCtor == null) {
-      return;
+      completer.complete();
+      return completer.future;
     }
     final container = html.DivElement();
     final service = js.JsObject(serviceCtor as js.JsFunction, [container]);
     final targetTypes = _buildTargetTypes();
     if (targetTypes.isEmpty) {
-      return;
+      completer.complete();
+      return completer.future;
     }
+
+    int pendingRequests = points.length * targetTypes.length;
+    if (pendingRequests == 0) {
+      completer.complete();
+      return completer.future;
+    }
+
     for (final p in points) {
       for (final type in targetTypes) {
         final location = js.JsObject.jsify({
@@ -466,92 +494,91 @@ class _WalkMapWidgetState extends State<WalkMapWidget> {
         service.callMethod('nearbySearch', [
           request,
           (results, status, [pagination]) {
-            if (status != 'OK') {
-              return;
+            pendingRequests--;
+            
+            if (status == 'OK' && results != null && mounted) {
+                final list = results as List;
+                if (list.isNotEmpty) {
+                    final newMarkers = <Marker>{};
+                    for (var i = 0; i < list.length; i++) {
+                      // ... (existing marker logic)
+                      final place = list[i] as js.JsObject;
+                      final ratingValue = place['rating'];
+                      final rating = ratingValue is num ? ratingValue.toDouble() : 0.0;
+                      final priceValue = place['price_level'];
+                      final price = priceValue is num ? priceValue.toInt() : 0;
+                      
+                      // Filter Logic (Web)
+                      bool pass = false;
+                      if (widget.filters.contains('コンビニのみ')) {
+                         final nameValue = place['name'];
+                         final name = nameValue != null ? nameValue.toString() : '';
+                         if (_matchBrand(name)) pass = true;
+                      } else if (widget.filters.contains('高評価重視')) {
+                         if (rating >= 4.2 && (price == 0 || price <= 4)) pass = true;
+                      } else if (widget.filters.contains('リーズナブル重視')) {
+                         if (price <= 2) pass = true;
+                      } else {
+                         if (rating >= 3.0) pass = true;
+                      }
+        
+                      if (!pass) continue;
+        
+                      final geometry = place['geometry'];
+                      if (geometry == null) continue;
+                      
+                      final loc = geometry['location'] as js.JsObject?;
+                      if (loc == null) continue;
+                      
+                      final lat = loc.callMethod('lat') as num;
+                      final lng = loc.callMethod('lng') as num;
+                      final idValue = place['place_id'];
+                      final nameValue = place['name'];
+                      final id = idValue != null ? idValue.toString() : '${lat}_${lng}_$type';
+                      final name = nameValue != null ? nameValue.toString() : '';
+        
+                      final distance = _distanceMeters();
+                      if (distance != null &&
+                          !_isWithinRoute(
+                            lat.toDouble(),
+                            lng.toDouble(),
+                            points,
+                            distance.toDouble(),
+                          )) {
+                        continue;
+                      }
+                      newMarkers.add(
+                        Marker(
+                          markerId: MarkerId(id),
+                          position: LatLng(lat.toDouble(), lng.toDouble()),
+                          infoWindow: InfoWindow(
+                            title: name,
+                            snippet: '⭐$rating ($type)',
+                          ),
+                          icon: BitmapDescriptor.defaultMarkerWithHue(
+                            type == 'park'
+                                ? BitmapDescriptor.hueGreen
+                                : BitmapDescriptor.hueRed,
+                          ),
+                        ),
+                      );
+                    }
+                    if (newMarkers.isNotEmpty && mounted) {
+                      setState(() {
+                        _markers.addAll(newMarkers);
+                      });
+                    }
+                }
             }
-            if (results == null || !mounted) {
-              return;
+            
+            if (pendingRequests <= 0 && !completer.isCompleted) {
+                completer.complete();
             }
-            final list = results as List;
-            if (list.isEmpty) {
-              return;
-            }
-            final newMarkers = <Marker>{};
-            for (var i = 0; i < list.length; i++) {
-              final place = list[i] as js.JsObject;
-              final ratingValue = place['rating'];
-              final rating = ratingValue is num ? ratingValue.toDouble() : 0.0;
-              final priceValue = place['price_level'];
-              final price = priceValue is num ? priceValue.toInt() : 0;
-              
-              // Filter Logic (Web)
-              bool pass = false;
-              if (widget.filters.contains('コンビニのみ')) {
-                 final nameValue = place['name'];
-                 final name = nameValue != null ? nameValue.toString() : '';
-                 if (_matchBrand(name)) pass = true;
-              } else if (widget.filters.contains('高評価重視')) {
-                 if (rating >= 4.2 && (price == 0 || price <= 4)) pass = true;
-              } else if (widget.filters.contains('リーズナブル重視')) {
-                 if (price <= 2) pass = true;
-              } else {
-                 if (rating >= 3.0) pass = true;
-              }
-
-              if (!pass) continue;
-
-              final geometry = place['geometry'];
-              if (geometry == null) {
-                continue;
-              }
-          final loc = geometry['location'] as js.JsObject?;
-          if (loc == null) {
-            continue;
-          }
-          final lat = loc.callMethod('lat') as num;
-          final lng = loc.callMethod('lng') as num;
-          final idValue = place['place_id'];
-          final nameValue = place['name'];
-          final id =
-              idValue != null ? idValue.toString() : '${lat}_${lng}_$type';
-          final name = nameValue != null ? nameValue.toString() : '';
-
-          final distance = _distanceMeters();
-          if (distance != null &&
-              !_isWithinRoute(
-                lat.toDouble(),
-                lng.toDouble(),
-                points,
-                distance.toDouble(),
-              )) {
-            continue;
-          }
-              newMarkers.add(
-                Marker(
-                  markerId: MarkerId(id),
-                  position: LatLng(lat.toDouble(), lng.toDouble()),
-                  infoWindow: InfoWindow(
-                    title: name,
-                    snippet: '⭐$rating ($type)',
-                  ),
-                  icon: BitmapDescriptor.defaultMarkerWithHue(
-                    type == 'park'
-                        ? BitmapDescriptor.hueGreen
-                        : BitmapDescriptor.hueRed,
-                  ),
-                ),
-              );
-            }
-            if (newMarkers.isEmpty || !mounted) {
-              return;
-            }
-            setState(() {
-              _markers.addAll(newMarkers);
-            });
           },
         ]);
       }
     }
+    return completer.future;
   }
 
   Future<void> _getPlacesAlongRoute(List<LatLng> points, List<LatLng> fullRoute) async {

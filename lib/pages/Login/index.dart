@@ -242,6 +242,7 @@ class _LoginPageState extends State<LoginPage> {
           TextField(
             controller: _emailController,
             keyboardType: TextInputType.emailAddress,
+            textInputAction: TextInputAction.next, // 回车跳到下一项
             style: const TextStyle(color: Colors.white),
             decoration: _buildInputDecoration('メールアドレス'),
           ),
@@ -249,6 +250,10 @@ class _LoginPageState extends State<LoginPage> {
           TextField(
             controller: _passwordController,
             obscureText: true,
+            textInputAction: TextInputAction.done, // 回车完成
+            onSubmitted: (_) {
+               if (!_loading) _submit(); // 触发提交
+            },
             style: const TextStyle(color: Colors.white),
             decoration: _buildInputDecoration('パスワード'),
           ),

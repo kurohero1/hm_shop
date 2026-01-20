@@ -41,7 +41,7 @@ class _MainPageState extends State<MainPage> {
   double? _destinationLon;
   String _systemComment = '';
   bool _filtersCollapsed = false;
-  final String _appVersion = 'v1.0.1'; // 版本号
+  final String _appVersion = 'v1.0.2'; // 版本号
 
   @override
   void initState() {
