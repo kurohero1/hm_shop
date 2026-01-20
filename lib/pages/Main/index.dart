@@ -39,6 +39,8 @@ class _MainPageState extends State<MainPage> {
   double? _originLon;
   double? _destinationLat;
   double? _destinationLon;
+  double? _waypointLat;
+  double? _waypointLon;
   String _systemComment = '';
   bool _filtersCollapsed = false;
   final String _appVersion = 'v1.0.2'; // 版本号
@@ -92,6 +94,8 @@ class _MainPageState extends State<MainPage> {
           _originLon = null;
           _destinationLat = null;
           _destinationLon = null;
+          _waypointLat = null;
+          _waypointLon = null;
         });
       }
     } else {
@@ -106,6 +110,8 @@ class _MainPageState extends State<MainPage> {
           _originLon = null;
           _destinationLat = null;
           _destinationLon = null;
+          _waypointLat = null;
+          _waypointLon = null;
           _systemComment = '';
         });
       }
@@ -270,11 +276,6 @@ class _MainPageState extends State<MainPage> {
         controller: controller,
         focusNode: focusNode,
         textAlign: TextAlign.center,
-        textInputAction: TextInputAction.search, // 键盘回车变成搜索图标
-        onSubmitted: (_) {
-          // 按回车时收起键盘，这会触发焦点失去，进而触发 _updateRoute
-          FocusScope.of(context).unfocus();
-        },
         decoration: InputDecoration(
           prefixIcon: Icon(icon, size: 18, color: mainGreen),
           hintText: hint,
@@ -385,12 +386,14 @@ class _MainPageState extends State<MainPage> {
         destination: _currentDestination,
         waypoint: _currentWaypoint,
         filters: Set.from(_selectedFilters),
-        onRouteEndpointsChanged: (originPoint, destinationPoint) {
+        onRouteEndpointsChanged: (originPoint, destinationPoint, waypointPoint) {
           setState(() {
             _originLat = originPoint.latitude;
             _originLon = originPoint.longitude;
             _destinationLat = destinationPoint.latitude;
             _destinationLon = destinationPoint.longitude;
+            _waypointLat = waypointPoint?.latitude;
+            _waypointLon = waypointPoint?.longitude;
           });
         },
       ),
@@ -426,6 +429,8 @@ class _MainPageState extends State<MainPage> {
       originLon: _originLon,
       destinationLat: _destinationLat,
       destinationLon: _destinationLon,
+      waypointLat: _waypointLat,
+      waypointLon: _waypointLon,
       onSystemCommentChanged: (text) {
         setState(() {
           _systemComment = text;

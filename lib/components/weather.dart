@@ -50,6 +50,8 @@ class WeatherPanel extends StatefulWidget {
   final double? originLon;
   final double? destinationLat;
   final double? destinationLon;
+  final double? waypointLat;
+  final double? waypointLon;
   final void Function(String)? onSystemCommentChanged;
 
   const WeatherPanel({
@@ -61,6 +63,8 @@ class WeatherPanel extends StatefulWidget {
     this.originLon,
     this.destinationLat,
     this.destinationLon,
+    this.waypointLat,
+    this.waypointLon,
     this.onSystemCommentChanged,
   });
 
@@ -117,7 +121,9 @@ class _WeatherPanelState extends State<WeatherPanel> {
         oldWidget.originLat != widget.originLat ||
         oldWidget.originLon != widget.originLon ||
         oldWidget.destinationLat != widget.destinationLat ||
-        oldWidget.destinationLon != widget.destinationLon) {
+        oldWidget.destinationLon != widget.destinationLon ||
+        oldWidget.waypointLat != widget.waypointLat ||
+        oldWidget.waypointLon != widget.waypointLon) {
       _loadAllWeather();
     }
   }
@@ -150,8 +156,9 @@ class _WeatherPanelState extends State<WeatherPanel> {
       final originFuture = widget.originLat != null && widget.originLon != null
           ? _fetchWeatherByCoords(origin, widget.originLat!, widget.originLon!)
           : _fetchPlaceWeather(origin);
-      final waypointFuture =
-          waypoint.isNotEmpty ? _fetchPlaceWeather(waypoint) : Future.value(null);
+      final waypointFuture = widget.waypointLat != null && widget.waypointLon != null
+          ? _fetchWeatherByCoords(waypoint, widget.waypointLat!, widget.waypointLon!)
+          : (waypoint.isNotEmpty ? _fetchPlaceWeather(waypoint) : Future.value(null));
       final destinationFuture =
           widget.destinationLat != null && widget.destinationLon != null
               ? _fetchWeatherByCoords(

@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:hm_shop/services/step_service.dart';
 import 'package:pedometer/pedometer.dart';
 import 'package:provider/provider.dart';
@@ -82,6 +83,12 @@ class _StepCounterState extends State<StepCounter> {
   void _saveManualSteps() {
     final steps = int.tryParse(_manualInputController.text);
     if (steps != null) {
+      if (steps < 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('歩数は0以上の数字を入力してください。')),
+        );
+        return;
+      }
       context.read<StepService>().saveStep(_selectedDate, steps);
       _manualInputController.clear();
       FocusScope.of(context).unfocus();
@@ -185,6 +192,7 @@ class _StepCounterState extends State<StepCounter> {
                   child: TextField(
                     controller: _manualInputController,
                     keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                     decoration: const InputDecoration(
                       hintText: '歩数を手入力',
                       border: OutlineInputBorder(),

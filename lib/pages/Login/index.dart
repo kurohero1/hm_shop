@@ -37,7 +37,7 @@ class _LoginPageState extends State<LoginPage> {
     final auth = context.read<AuthService>();
     final email = _emailController.text.trim();
     final password = _passwordController.text;
-    if (_isRegister && password.length < 6) {
+    if (password.length < 6) {
       setState(() {
         _loading = false;
         _error = 'パスワードは６文字以上で設定してください。';
@@ -83,15 +83,25 @@ class _LoginPageState extends State<LoginPage> {
       _info = null;
     });
     final email = _emailController.text.trim();
+
+    if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(email)) {
+      setState(() {
+        _loading = false;
+        _error = 'メールアドレスの形式が正しくありません。';
+        _info = null;
+      });
+      return;
+    }
+
     final ok = await context.read<AuthService>().requestPasswordReset(email);
     if (!mounted) return;
     setState(() {
       _loading = false;
       if (ok) {
-        _info = 'パスワード再設定用のリンクを送信しました。';
+        _info = 'パスワード再設定用のリンクを送信しました。\n※メールが届かない場合は、メールアドレスが登録されていない可能性があります。';
         _error = null;
       } else {
-        _error = '再設定に失敗しました。メールアドレスをご確認ください。';
+        _error = 'パスワード再設定用のメールの送信に失敗しました。メールアドレスをご確認ください。';
         _info = null;
       }
     });

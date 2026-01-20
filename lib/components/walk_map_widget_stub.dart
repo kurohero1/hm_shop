@@ -6,7 +6,7 @@ class WalkMapWidget extends StatelessWidget {
   final String destination;
   final String? waypoint;
   final Set<String> filters;
-  final void Function(LatLng origin, LatLng destination)? onRouteEndpointsChanged;
+  final void Function(LatLng origin, LatLng destination, LatLng? waypoint)? onRouteEndpointsChanged;
 
   const WalkMapWidget({
     super.key,

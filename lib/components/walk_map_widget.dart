@@ -18,7 +18,7 @@ class WalkMapWidget extends StatefulWidget {
   final String destination;
   final String? waypoint; // 新增：经由地
   final Set<String> filters;
-  final void Function(LatLng origin, LatLng destination)? onRouteEndpointsChanged;
+  final void Function(LatLng origin, LatLng destination, LatLng? waypoint)? onRouteEndpointsChanged;
 
   const WalkMapWidget({
     super.key,
@@ -40,6 +40,7 @@ class _WalkMapWidgetState extends State<WalkMapWidget> {
   final Set<Polyline> _polylines = {};
 
   LatLng _center = const LatLng(35.681236, 139.767125); // fallback
+  LatLng? _waypointLatLng;
   bool _loading = true;
   String? _errorMessage;
   String? _routeDistance;
@@ -85,6 +86,7 @@ class _WalkMapWidgetState extends State<WalkMapWidget> {
         _hasShownNoResultToast = false; // Reset toast flag
         _markers.clear();
         _polylines.clear();
+        _waypointLatLng = null;
       });
       _loadRouteAndPlaces();
     }
@@ -109,11 +111,12 @@ class _WalkMapWidgetState extends State<WalkMapWidget> {
         return;
       }
 
+      // Add markers for Origin, Destination, and Waypoint
       if (mounted) {
         if (widget.onRouteEndpointsChanged != null) {
           final originPoint = route.first;
           final destinationPoint = route.last;
-          widget.onRouteEndpointsChanged!(originPoint, destinationPoint);
+          widget.onRouteEndpointsChanged!(originPoint, destinationPoint, _waypointLatLng);
         }
         setState(() {
           _polylines.add(
@@ -126,7 +129,45 @@ class _WalkMapWidgetState extends State<WalkMapWidget> {
           );
           _center = route[route.length ~/ 2];
           _loading = false; // 先展示地图与路线
+          
+          // Add Start Marker
+          _markers.add(
+            Marker(
+              markerId: const MarkerId('origin'),
+              position: route.first,
+              infoWindow: InfoWindow(title: '始発: ${widget.origin}'),
+              icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
+            ),
+          );
+
+          // Add End Marker
+          _markers.add(
+            Marker(
+              markerId: const MarkerId('destination'),
+              position: route.last,
+              infoWindow: InfoWindow(title: '終点: ${widget.destination}'),
+              icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
+            ),
+          );
         });
+        
+        // Add Waypoint Marker if exists (Need to find its position)
+        // Note: For Web, we add waypoint in _getRouteViaJsDirections as we have leg info there.
+        // For Mobile, we need to extract it from legs if available, or just rely on web implementation for now if mainly testing on web.
+        // Actually, for mobile, the legs parsing is already done in _getRoute.
+        // So we should handle waypoint addition inside _getRoute (mobile) and _getRouteViaJsDirections (web).
+        // The markers added here are just for safety/default.
+        // Let's remove the redundant marker addition here to avoid conflict or confusion,
+        // and ensure both _getRoute and _getRouteViaJsDirections add the markers including waypoint.
+        // BUT, _getRoute returns List<LatLng> only. It doesn't return markers.
+        // So we need to parse legs HERE or inside _getRoute and update state.
+        
+        // Let's modify _getRoute to update state directly like _getRouteViaJsDirections does for distance/duration.
+        // Wait, _getRouteViaJsDirections updates _markers for waypoint?
+        // Yes, I added that logic in previous turn.
+        
+        // Check if _getRoute (mobile) has waypoint logic.
+        // It does NOT have waypoint logic yet.
       }
 
       // Web 上直接调用 Places REST 也会遇到 CORS 限制，这里仅在非 Web 环境请求
@@ -201,12 +242,33 @@ class _WalkMapWidgetState extends State<WalkMapWidget> {
       throw Exception('Directions API error: ${data['status']}');
     }
 
-    // Get distance and duration from the first leg (or sum if multiple legs)
-    if (data['routes'].isNotEmpty && data['routes'][0]['legs'].isNotEmpty) {
-       final legs = data['routes'][0]['legs'] as List;
-       int totalMeters = 0;
-       int totalSeconds = 0;
-       for (final leg in legs) {
+       // Get distance and duration from the first leg (or sum if multiple legs)
+       if (data['routes'].isNotEmpty && data['routes'][0]['legs'].isNotEmpty) {
+          final legs = data['routes'][0]['legs'] as List;
+          int totalMeters = 0;
+          int totalSeconds = 0;
+          
+          // Mobile: Extract Waypoint location if exists
+          if (legs.length > 1 && mounted) {
+             final leg0 = legs[0];
+             final endLoc = leg0['end_location'];
+             final lat = endLoc['lat'];
+             final lng = endLoc['lng'];
+             
+             setState(() {
+               _waypointLatLng = LatLng(lat, lng);
+               _markers.add(
+                  Marker(
+                    markerId: const MarkerId('waypoint'),
+                    position: LatLng(lat, lng),
+                    infoWindow: InfoWindow(title: '中間: ${widget.waypoint}'),
+                    icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
+                  ),
+               );
+             });
+          }
+
+          for (final leg in legs) {
          totalMeters += (leg['distance']['value'] as num).toInt();
          totalSeconds += (leg['duration']['value'] as num).toInt();
        }
@@ -272,6 +334,9 @@ class _WalkMapWidgetState extends State<WalkMapWidget> {
         'origin': widget.origin,
         'destination': widget.destination,
         'travelMode': 'WALKING',
+        'waypoints': widget.waypoint != null && widget.waypoint!.isNotEmpty
+            ? [{'location': widget.waypoint, 'stopover': true}]
+            : [],
       });
       directionsService.callMethod('route', [
         request,
@@ -292,6 +357,29 @@ class _WalkMapWidgetState extends State<WalkMapWidget> {
             final legs = route0['legs'] as List;
             int totalMeters = 0;
             int totalSeconds = 0;
+            
+            // Extract Waypoint location if exists (legs.length > 1)
+            // If we have 1 waypoint, we have 2 legs: Origin -> Waypoint, Waypoint -> Destination
+            // The end_location of the first leg (or start_location of second leg) is the waypoint.
+            if (legs.length > 1 && mounted) {
+               final leg0 = legs[0] as js.JsObject;
+               final endLoc = leg0['end_location'] as js.JsObject;
+               final lat = endLoc.callMethod('lat') as num;
+               final lng = endLoc.callMethod('lng') as num;
+               
+               setState(() {
+                 _waypointLatLng = LatLng(lat.toDouble(), lng.toDouble());
+                 _markers.add(
+                    Marker(
+                      markerId: const MarkerId('waypoint'),
+                      position: LatLng(lat.toDouble(), lng.toDouble()),
+                      infoWindow: InfoWindow(title: '中間: ${widget.waypoint}'),
+                      icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
+                    ),
+                 );
+               });
+            }
+
             for (var i = 0; i < legs.length; i++) {
               final leg = legs[i] as js.JsObject;
               final distVal = leg['distance']['value'] as num;
@@ -693,7 +781,7 @@ class _WalkMapWidgetState extends State<WalkMapWidget> {
             target: _center,
             zoom: 14,
           ),
-          markers: _markers,
+          markers: Set<Marker>.of(_markers),
           polylines: _polylines,
           myLocationEnabled: true,
           zoomControlsEnabled: false,
