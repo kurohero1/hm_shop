@@ -172,7 +172,14 @@ class _WeatherPanelState extends State<WeatherPanel> {
       if (!mounted) return;
       setState(() {
         _originWeather = _pickBetterWeather(_originWeather, results[0]);
-        _waypointWeather = _pickBetterWeather(_waypointWeather, results[1]);
+        
+        // 修正: 経由地が空の場合はデータをクリアする
+        if (waypoint.isEmpty) {
+          _waypointWeather = null;
+        } else {
+          _waypointWeather = _pickBetterWeather(_waypointWeather, results[1]);
+        }
+        
         _destinationWeather =
             _pickBetterWeather(_destinationWeather, results[2]);
         _systemComment = _buildSystemComment();

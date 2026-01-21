@@ -133,7 +133,7 @@ class _MainPageState extends State<MainPage> {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: mainGreen,
-        title: const Text('さんぽアプリ'),
+        title: const Text('さんぽAI'),
         actions: [
           IconButton(
             onPressed: () async {
@@ -267,7 +267,7 @@ class _MainPageState extends State<MainPage> {
                       _filterChip('甘味\nさんぽ', isMultiLine: true),
                       _filterChip('高評価重視', icon: Icons.star),
                       _filterChip('リーズナブル重視', icon: Icons.attach_money),
-                      _filterChip('コンビニのみ', icon: Icons.store),
+                      _filterChip('コンビニさんぽ', icon: Icons.store),
                       if (_selectedFilters.contains('コンビニのみ')) ...[
                         _filterChip('セブン'),
                         _filterChip('ファミマ'),

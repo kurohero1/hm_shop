@@ -52,7 +52,7 @@ class MyApp extends StatelessWidget {
     final auth = context.watch<AuthService>();
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'さんぽアプリ',
+      title: 'さんぽAI',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF2FA84F)),
         useMaterial3: true,

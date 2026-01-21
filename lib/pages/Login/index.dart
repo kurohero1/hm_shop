@@ -1,5 +1,8 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 import 'package:hm_shop/services/auth_service.dart';
 
@@ -19,6 +22,16 @@ class _LoginPageState extends State<LoginPage> {
   bool _isRegister = false;
   int _resendCooldown = 0;
   Timer? _resendTimer;
+  
+  // 天气相关
+  IconData _weatherIcon = Icons.wb_sunny_rounded; // 默认
+  bool _loadingWeather = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchCurrentWeather();
+  }
 
   @override
   void dispose() {
@@ -26,6 +39,99 @@ class _LoginPageState extends State<LoginPage> {
     _passwordController.dispose();
     _resendTimer?.cancel();
     super.dispose();
+  }
+
+  Future<void> _fetchCurrentWeather() async {
+    setState(() {
+      _loadingWeather = true;
+    });
+
+    try {
+      // 1. 获取位置权限
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          // 权限被拒绝，保持默认
+          setState(() => _loadingWeather = false);
+          return;
+        }
+      }
+      
+      if (permission == LocationPermission.deniedForever) {
+        setState(() => _loadingWeather = false);
+        return;
+      }
+
+      // 2. 获取当前位置
+      final position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.low, // 不需要太高精度，省电且快
+      );
+
+      // 3. 调用 Open-Meteo API
+      final url = Uri.parse(
+        'https://api.open-meteo.com/v1/forecast'
+        '?latitude=${position.latitude}'
+        '&longitude=${position.longitude}'
+        '&current_weather=true'
+      );
+
+      final response = await http.get(url);
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final current = data['current_weather'];
+        if (current != null) {
+          final int code = current['weathercode'];
+          if (mounted) {
+            setState(() {
+              _weatherIcon = _getWeatherIcon(code);
+            });
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Error fetching weather: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _loadingWeather = false;
+        });
+      }
+    }
+  }
+
+  IconData _getWeatherIcon(int code) {
+    // WMO Weather interpretation codes (WW)
+    // 0: Clear sky
+    if (code == 0) return Icons.wb_sunny_rounded;
+    
+    // 1, 2, 3: Mainly clear, partly cloudy, and overcast
+    if ([1, 2, 3].contains(code)) return Icons.wb_cloudy_rounded;
+    
+    // 45, 48: Fog
+    if ([45, 48].contains(code)) return Icons.cloud; // 暂用云代替雾
+    
+    // 51, 53, 55: Drizzle
+    // 61, 63, 65: Rain
+    // 80, 81, 82: Rain showers
+    if ([51, 53, 55, 61, 63, 65, 80, 81, 82].contains(code)) {
+      return Icons.umbrella_rounded;
+    }
+    
+    // 71, 73, 75: Snow fall
+    // 77: Snow grains
+    // 85, 86: Snow showers
+    if ([71, 73, 75, 77, 85, 86].contains(code)) {
+      return Icons.ac_unit_rounded;
+    }
+    
+    // 95: Thunderstorm
+    // 96, 99: Thunderstorm with hail
+    if ([95, 96, 99].contains(code)) {
+      return Icons.thunderstorm_rounded;
+    }
+
+    return Icons.wb_sunny_rounded; // 默认
   }
 
   Future<void> _submit() async {
@@ -37,7 +143,9 @@ class _LoginPageState extends State<LoginPage> {
     final auth = context.read<AuthService>();
     final email = _emailController.text.trim();
     final password = _passwordController.text;
-    if (password.length < 6) {
+
+    // 注册时才校验密码长度
+    if (_isRegister && password.length < 6) {
       setState(() {
         _loading = false;
         _error = 'パスワードは６文字以上で設定してください。';
@@ -45,6 +153,7 @@ class _LoginPageState extends State<LoginPage> {
       });
       return;
     }
+
     bool ok;
     if (_isRegister) {
       ok = await auth.register(email, password);
@@ -69,7 +178,7 @@ class _LoginPageState extends State<LoginPage> {
           _info = null;
         } else {
           _error =
-              'ログインに失敗しました。メールアドレス、パスワード、メール認証状態を確認してください。';
+              'ログインに失敗しました。メールアドレス・パスワード・メール認証状態を確認してください。';
           _info = null;
         }
       });
@@ -153,15 +262,24 @@ class _LoginPageState extends State<LoginPage> {
               ),
             ],
           ),
-          child: const Icon(
-            Icons.wb_sunny_rounded,
-            size: 48,
-            color: Colors.white,
-          ),
+          child: _loadingWeather
+              ? const SizedBox(
+                  width: 32,
+                  height: 32,
+                  child: CircularProgressIndicator(
+                    color: Colors.white,
+                    strokeWidth: 3,
+                  ),
+                )
+              : Icon(
+                  _weatherIcon,
+                  size: 48,
+                  color: Colors.white,
+                ),
         ),
         const SizedBox(height: 16),
         const Text(
-          'さんぽ天気',
+          'さんぽAI',
           style: TextStyle(
             color: Colors.white,
             fontSize: 26,
