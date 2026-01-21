@@ -4,8 +4,10 @@ import 'package:hm_shop/components/weekly_distance_chart.dart';
 import 'package:hm_shop/components/walk_map_widget_stub.dart'
     if (dart.library.html) 'package:hm_shop/components/walk_map_widget.dart';
 import 'package:hm_shop/components/weather.dart';
+import 'package:hm_shop/services/step_service.dart';
 import 'package:provider/provider.dart';
 import 'package:hm_shop/services/auth_service.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 class MainPage extends StatefulWidget {
   const MainPage({super.key});
@@ -43,11 +45,12 @@ class _MainPageState extends State<MainPage> {
   double? _waypointLon;
   String _systemComment = '';
   bool _filtersCollapsed = false;
-  final String _appVersion = 'v1.0.3'; // 版本号
+  String _appVersion = ''; // 版本号，将从 package_info 获取
 
   @override
   void initState() {
     super.initState();
+    _loadAppVersion();
     // 初始化输入框内容
     _originController.text = _currentOrigin;
     _waypointController.text = _currentWaypoint;
@@ -75,6 +78,13 @@ class _MainPageState extends State<MainPage> {
     if (!_originFocus.hasFocus && !_waypointFocus.hasFocus && !_destFocus.hasFocus) {
       _updateRoute();
     }
+  }
+
+  Future<void> _loadAppVersion() async {
+    final packageInfo = await PackageInfo.fromPlatform();
+    setState(() {
+      _appVersion = 'v${packageInfo.version}';
+    });
   }
 
   void _updateRoute() {
@@ -126,8 +136,15 @@ class _MainPageState extends State<MainPage> {
         title: const Text('さんぽアプリ'),
         actions: [
           IconButton(
-            onPressed: () {
-              context.read<AuthService>().signOut();
+            onPressed: () async {
+              // 登出时清除本地步数数据，防止不同用户数据混淆
+              // 注意：context.read 是不推荐在异步操作前保存使用的，但在点击回调中是标准的
+              // 关键是确保 clearAllData 执行完再 signOut
+              final stepService = context.read<StepService>();
+              final authService = context.read<AuthService>();
+              
+              await stepService.clearAllData();
+              await authService.signOut();
             },
             icon: const Icon(Icons.logout),
           ),
