@@ -268,7 +268,7 @@ class _MainPageState extends State<MainPage> {
                       _filterChip('高評価重視', icon: Icons.star),
                       _filterChip('リーズナブル重視', icon: Icons.attach_money),
                       _filterChip('コンビニさんぽ', icon: Icons.store),
-                      if (_selectedFilters.contains('コンビニのみ')) ...[
+                      if (_selectedFilters.contains('コンビニさんぽ')) ...[
                         _filterChip('セブン'),
                         _filterChip('ファミマ'),
                         _filterChip('ローソン'),
@@ -317,7 +317,7 @@ class _MainPageState extends State<MainPage> {
         setState(() {
           if (isSelected) {
             _selectedFilters.remove(label);
-            if (label == 'コンビニのみ') {
+            if (label == 'コンビニさんぽ') {
               _selectedFilters.remove('セブン');
               _selectedFilters.remove('ファミマ');
               _selectedFilters.remove('ローソン');

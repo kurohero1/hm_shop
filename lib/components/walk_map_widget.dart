@@ -172,19 +172,19 @@ class _WalkMapWidgetState extends State<WalkMapWidget> {
 
       // Web 上直接调用 Places REST 也会遇到 CORS 限制，这里仅在非 Web 环境请求
       final sampled = _sampleRoute(route, 10);
+      final int preSearchMarkerCount = _markers.length;
+
       if (kIsWeb) {
         await _loadPlacesAlongRouteWeb(sampled);
       } else {
-        Future(() async {
-          await _getPlacesAlongRoute(sampled, route);
-          if (mounted) {
-            setState(() {});
-          }
-        });
+        await _getPlacesAlongRoute(sampled, route);
+        if (mounted) {
+          setState(() {});
+        }
       }
       
       // Check if markers found
-      if (mounted && _markers.isEmpty && !_hasShownNoResultToast && widget.filters.isNotEmpty) {
+      if (mounted && _markers.length == preSearchMarkerCount && !_hasShownNoResultToast && widget.filters.isNotEmpty) {
         _hasShownNoResultToast = true;
         ScaffoldMessenger.of(context).showSnackBar(
            SnackBar(
@@ -467,7 +467,7 @@ class _WalkMapWidgetState extends State<WalkMapWidget> {
     }
 
     // 2. Check for "Conbini" mode
-    if (widget.filters.contains('コンビニのみ')) {
+    if (widget.filters.contains('コンビニさんぽ')) {
       targetTypes.add('convenience_store');
     }
 
@@ -598,7 +598,7 @@ class _WalkMapWidgetState extends State<WalkMapWidget> {
                       
                       // Filter Logic (Web)
                       bool pass = false;
-                      if (widget.filters.contains('コンビニのみ')) {
+                      if (widget.filters.contains('コンビニさんぽ')) {
                          final nameValue = place['name'];
                          final name = nameValue != null ? nameValue.toString() : '';
                          if (_matchBrand(name)) pass = true;
@@ -695,7 +695,7 @@ class _WalkMapWidgetState extends State<WalkMapWidget> {
 
           // Filter Logic based on map.py
           bool pass = false;
-          if (widget.filters.contains('コンビニのみ')) {
+          if (widget.filters.contains('コンビニさんぽ')) {
             // Conbini: Check brand
             if (_matchBrand(name)) {
               pass = true;
