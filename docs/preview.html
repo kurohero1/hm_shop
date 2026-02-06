@@ -24,21 +24,21 @@
 
     <h2>1. ユースケース図</h2>
     <div class="mermaid">
-usecaseDiagram
-    actor "ユーザー" as User
-    actor "Google Maps API" as GMaps
-    actor "Firebase Auth" as Firebase
-    actor "OpenWeatherMap API" as WeatherAPI
+flowchart LR
+    User["User"]
+    GMaps["Google Maps API"]
+    Firebase["Firebase Auth"]
+    WeatherAPI["OpenWeatherMap API"]
 
-    package "さんぽAI (HM Shop)" {
-        usecase "ログイン/登録" as UC1
-        usecase "ログアウト" as UC2
-        usecase "ルート検索" as UC3
-        usecase "地図・ルート表示" as UC4
-        usecase "スポット検索・表示" as UC5
-        usecase "歩数・距離確認" as UC6
-        usecase "天気情報確認" as UC7
-    }
+    subgraph "Sanpo AI (HM Shop)"
+        UC1(("Login / Register"))
+        UC2(("Logout"))
+        UC3(("Search Route"))
+        UC4(("Show Map & Route"))
+        UC5(("Search Spots"))
+        UC6(("Check Steps / Distance"))
+        UC7(("Check Weather"))
+    end
 
     User --> UC1
     User --> UC2
@@ -47,18 +47,21 @@ usecaseDiagram
     User --> UC6
     User --> UC7
 
-    UC1 ..> Firebase : 認証
-    UC2 ..> Firebase : サインアウト
-    UC3 ..> GMaps : 経路計算 (Directions API)
-    UC4 ..> GMaps : 地図表示 (Maps SDK)
-    UC5 ..> GMaps : スポット検索 (Places API)
-    UC3 <.. UC5 : &lt;&lt;extend&gt;&gt; (ルート沿いの検索)
-    UC7 ..> WeatherAPI : 天気取得 (Inferred)
+    UC1 -. Auth .-> Firebase
+    UC2 -. Sign out .-> Firebase
+    UC3 -. Directions API .-> GMaps
+    UC4 -. Maps SDK .-> GMaps
+    UC5 -. Places API .-> GMaps
+    UC5 -. extend .-> UC3
+    UC7 -. Weather .-> WeatherAPI
     </div>
 
     <h2>2. クラス図</h2>
     <div class="mermaid">
 classDiagram
+    %% =========================
+    %% Main Page
+    %% =========================
     class MainPage {
         -TextEditingController _originController
         -TextEditingController _destController
@@ -70,6 +73,9 @@ classDiagram
         -_loadAppVersion()
     }
 
+    %% =========================
+    %% Map Widget
+    %% =========================
     class WalkMapWidget {
         +String origin
         +String destination
@@ -82,6 +88,9 @@ classDiagram
         -_loadPlacesAlongRoute()
     }
 
+    %% =========================
+    %% Services
+    %% =========================
     class AuthService {
         -FirebaseAuth _auth
         +bool isAuthenticated
@@ -98,6 +107,9 @@ classDiagram
         +clearAllData()
     }
 
+    %% =========================
+    %% UI Components
+    %% =========================
     class WeatherPanel {
         +String originName
         +String destinationName
@@ -112,16 +124,28 @@ classDiagram
         +build()
     }
 
-    MainPage --> AuthService : uses (via Provider)
-    MainPage --> StepService : uses (via Provider)
+    %% =========================
+    %% External API
+    %% =========================
+    class GoogleMapsAPI {
+        &lt;&lt;external&gt;&gt;
+    }
+
+    %% =========================
+    %% Relationships
+    %% =========================
+    MainPage --> AuthService : uses (Provider)
+    MainPage --> StepService : uses (Provider)
+
     MainPage *-- WalkMapWidget : composes
     MainPage *-- StepCounter : composes
     MainPage *-- WeeklyDistanceChart : composes
     MainPage *-- WeatherPanel : composes
-    WalkMapWidget ..> "Google Maps API" : calls
+
+    WalkMapWidget ..> GoogleMapsAPI : calls
     </div>
 
-    <h2>3. シーケンス図（ルート検索フロー）</h2>
+    <h2>3. シーケンス図</h2>
     <div class="mermaid">
 sequenceDiagram
     autonumber
