@@ -4,6 +4,7 @@
 
 ```mermaid
 usecaseDiagram
+    %% Actors
     actor "ユーザー" as User
     actor "Google Maps API" as GMaps
     actor "Firebase Auth" as Firebase
