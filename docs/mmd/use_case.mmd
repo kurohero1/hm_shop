@@ -1,0 +1,30 @@
+flowchart LR
+    User["User"]
+    GMaps["Google Maps API"]
+    Firebase["Firebase Auth"]
+    WeatherAPI["OpenWeatherMap API"]
+
+    subgraph "Sanpo AI (HM Shop)"
+        UC1(("Login / Register"))
+        UC2(("Logout"))
+        UC3(("Search Route"))
+        UC4(("Show Map & Route"))
+        UC5(("Search Spots"))
+        UC6(("Check Steps / Distance"))
+        UC7(("Check Weather"))
+    end
+
+    User --> UC1
+    User --> UC2
+    User --> UC3
+    User --> UC4
+    User --> UC6
+    User --> UC7
+
+    UC1 -. Auth .-> Firebase
+    UC2 -. Sign out .-> Firebase
+    UC3 -. Directions API .-> GMaps
+    UC4 -. Maps SDK .-> GMaps
+    UC5 -. Places API .-> GMaps
+    UC5 -. extend .-> UC3
+    UC7 -. Weather .-> WeatherAPI
