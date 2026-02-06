@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>さんぽAI 設計図プレビュー</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; max-width: 1200px; margin: 0 auto; }
+        h1 { border-bottom: 2px solid #2FA84F; padding-bottom: 10px; }
+        h2 { margin-top: 40px; background-color: #f0f0f0; padding: 10px; border-left: 5px solid #2FA84F; }
+        .mermaid { text-align: center; margin: 20px 0; }
+        .description { background: #f9f9f9; padding: 15px; border-radius: 5px; line-height: 1.6; }
+    </style>
+    <!-- Mermaid 10 is ESM only. Using module script. -->
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        mermaid.initialize({ startOnLoad: true });
+    </script>
+</head>
+<body>
+    <h1>さんぽAI システム設計図</h1>
+    <p>このファイルはブラウザで開くことで、Mermaid記法の図をレンダリングして確認できます。</p>
+    <p style="color: #666; font-size: 0.9em;">※ 表示されない場合は、ブラウザのキャッシュをクリアするか、別のブラウザ（Chrome/Edge等）をお試しください。</p>
+
+    <h2>1. ユースケース図</h2>
+    <div class="mermaid">
+usecaseDiagram
+    actor "ユーザー" as User
+    actor "Google Maps API" as GMaps
+    actor "Firebase Auth" as Firebase
+    actor "OpenWeatherMap API" as WeatherAPI
+
+    package "さんぽAI (HM Shop)" {
+        usecase "ログイン/登録" as UC1
+        usecase "ログアウト" as UC2
+        usecase "ルート検索" as UC3
+        usecase "地図・ルート表示" as UC4
+        usecase "スポット検索・表示" as UC5
+        usecase "歩数・距離確認" as UC6
+        usecase "天気情報確認" as UC7
+    }
+
+    User --> UC1
+    User --> UC2
+    User --> UC3
+    User --> UC4
+    User --> UC6
+    User --> UC7
+
+    UC1 ..> Firebase : 認証
+    UC2 ..> Firebase : サインアウト
+    UC3 ..> GMaps : 経路計算 (Directions API)
+    UC4 ..> GMaps : 地図表示 (Maps SDK)
+    UC5 ..> GMaps : スポット検索 (Places API)
+    UC3 <.. UC5 : &lt;&lt;extend&gt;&gt; (ルート沿いの検索)
+    UC7 ..> WeatherAPI : 天気取得 (Inferred)
+    </div>
+
+    <h2>2. クラス図</h2>
+    <div class="mermaid">
+classDiagram
+    class MainPage {
+        -TextEditingController _originController
+        -TextEditingController _destController
+        -Set~String~ _selectedFilters
+        -WalkMapWidget mapWidget
+        +initState()
+        +build()
+        -_updateRoute()
+        -_loadAppVersion()
+    }
+
+    class WalkMapWidget {
+        +String origin
+        +String destination
+        +String? waypoint
+        +Set~String~ filters
+        -Set~Marker~ _markers
+        -Set~Polyline~ _polylines
+        +createState()
+        -_getRoute()
+        -_loadPlacesAlongRoute()
+    }
+
+    class AuthService {
+        -FirebaseAuth _auth
+        +bool isAuthenticated
+        +signIn(email, password)
+        +signOut()
+        +register(email, password)
+    }
+
+    class StepService {
+        -Map~String, int~ _dailySteps
+        +saveStep(date, steps)
+        +getStepsForDate(date)
+        +getLast7DaysKm()
+        +clearAllData()
+    }
+
+    class WeatherPanel {
+        +String originName
+        +String destinationName
+        +onSystemCommentChanged
+    }
+
+    class StepCounter {
+        +build()
+    }
+
+    class WeeklyDistanceChart {
+        +build()
+    }
+
+    MainPage --> AuthService : uses (via Provider)
+    MainPage --> StepService : uses (via Provider)
+    MainPage *-- WalkMapWidget : composes
+    MainPage *-- StepCounter : composes
+    MainPage *-- WeeklyDistanceChart : composes
+    MainPage *-- WeatherPanel : composes
+    WalkMapWidget ..> "Google Maps API" : calls
+    </div>
+
+    <h2>3. シーケンス図（ルート検索フロー）</h2>
+    <div class="mermaid">
+sequenceDiagram
+    autonumber
+    actor User as ユーザー
+    participant Main as MainPage
+    participant Map as WalkMapWidget
+    participant GDir as Google Directions API
+    participant GPlace as Google Places API
+
+    User->>Main: 出発地・目的地を入力
+    User->>Main: フィルタ「コンビニさんぽ」を選択
+    User->>Main: 入力確定 (フォーカスアウト)
+    activate Main
+    Main->>Main: _updateRoute()
+    Main->>Map: 再描画 (origin, dest, filters)
+    deactivate Main
+
+    activate Map
+    Map->>Map: _loadRouteAndPlaces()
+    
+    Map->>GDir: 経路検索リクエスト (origin, dest, mode=walking)
+    activate GDir
+    GDir-->>Map: 経路データ (JSON)
+    deactivate GDir
+
+    Map->>Map: ルート描画 (_polylines.add)
+    Map->>Map: 出発・到着マーカー追加 (_markers.add)
+
+    alt フィルタあり (コンビニさんぽ)
+        Map->>Map: _sampleRoute(route)
+        loop サンプリング地点ごと
+            Map->>GPlace: 周辺検索 (type=convenience_store)
+            activate GPlace
+            GPlace-->>Map: 施設リスト
+            deactivate GPlace
+        end
+        Map->>Map: 施設マーカー追加 (_markers.add)
+    end
+
+    Map-->>User: 地図更新 (ルート・マーカー表示)
+    deactivate Map
+    </div>
+</body>
+</html>

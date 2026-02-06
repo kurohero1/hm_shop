@@ -137,6 +137,7 @@ class _WalkMapWidgetState extends State<WalkMapWidget> {
               position: route.first,
               infoWindow: InfoWindow(title: '始発: ${widget.origin}'),
               icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
+              zIndex: 10.0,
             ),
           );
 
@@ -147,27 +148,13 @@ class _WalkMapWidgetState extends State<WalkMapWidget> {
               position: route.last,
               infoWindow: InfoWindow(title: '終点: ${widget.destination}'),
               icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
+              zIndex: 10.0,
             ),
           );
         });
         
-        // Add Waypoint Marker if exists (Need to find its position)
-        // Note: For Web, we add waypoint in _getRouteViaJsDirections as we have leg info there.
-        // For Mobile, we need to extract it from legs if available, or just rely on web implementation for now if mainly testing on web.
-        // Actually, for mobile, the legs parsing is already done in _getRoute.
-        // So we should handle waypoint addition inside _getRoute (mobile) and _getRouteViaJsDirections (web).
-        // The markers added here are just for safety/default.
-        // Let's remove the redundant marker addition here to avoid conflict or confusion,
-        // and ensure both _getRoute and _getRouteViaJsDirections add the markers including waypoint.
-        // BUT, _getRoute returns List<LatLng> only. It doesn't return markers.
-        // So we need to parse legs HERE or inside _getRoute and update state.
-        
-        // Let's modify _getRoute to update state directly like _getRouteViaJsDirections does for distance/duration.
-        // Wait, _getRouteViaJsDirections updates _markers for waypoint?
-        // Yes, I added that logic in previous turn.
-        
-        // Check if _getRoute (mobile) has waypoint logic.
-        // It does NOT have waypoint logic yet.
+        // Waypoint Marker is added inside _getRoute (Mobile) or _getRouteViaJsDirections (Web)
+        // because we need the exact location data from the API response (legs).
       }
 
       // Web 上直接调用 Places REST 也会遇到 CORS 限制，这里仅在非 Web 环境请求
@@ -256,16 +243,17 @@ class _WalkMapWidgetState extends State<WalkMapWidget> {
              final lng = endLoc['lng'];
              
              setState(() {
-               _waypointLatLng = LatLng(lat, lng);
-               _markers.add(
-                  Marker(
-                    markerId: const MarkerId('waypoint'),
-                    position: LatLng(lat, lng),
-                    infoWindow: InfoWindow(title: '中間: ${widget.waypoint}'),
-                    icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
-                  ),
-               );
-             });
+                 _waypointLatLng = LatLng(lat, lng);
+                 _markers.add(
+                    Marker(
+                      markerId: const MarkerId('waypoint'),
+                      position: LatLng(lat, lng),
+                      infoWindow: InfoWindow(title: '中間: ${widget.waypoint}'),
+                      icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
+                      zIndex: 10.0,
+                    ),
+                 );
+               });
           }
 
           for (final leg in legs) {
@@ -375,6 +363,7 @@ class _WalkMapWidgetState extends State<WalkMapWidget> {
                       position: LatLng(lat.toDouble(), lng.toDouble()),
                       infoWindow: InfoWindow(title: '中間: ${widget.waypoint}'),
                       icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
+                      zIndex: 10.0,
                     ),
                  );
                });
