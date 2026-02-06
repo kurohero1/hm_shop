@@ -1,6 +1,6 @@
 # クラス図
 
-## クラス図（Mermaid）
+## クラス図 (Mermaid)
 
 ```mermaid
 classDiagram
@@ -10,7 +10,7 @@ classDiagram
     class MainPage {
         -TextEditingController _originController
         -TextEditingController _destController
-        -Set<String> _selectedFilters
+        -Set~String~ _selectedFilters
         -WalkMapWidget mapWidget
         +initState()
         +build()
@@ -25,9 +25,9 @@ classDiagram
         +String origin
         +String destination
         +String? waypoint
-        +Set<String> filters
-        -Set<Marker> _markers
-        -Set<Polyline> _polylines
+        +Set~String~ filters
+        -Set~Marker~ _markers
+        -Set~Polyline~ _polylines
         +createState()
         -_getRoute()
         -_loadPlacesAlongRoute()
@@ -45,7 +45,7 @@ classDiagram
     }
 
     class StepService {
-        -Map<String, int> _dailySteps
+        -Map~String, int~ _dailySteps
         +saveStep(date, steps)
         +getStepsForDate(date)
         +getLast7DaysKm()
@@ -88,7 +88,7 @@ classDiagram
     MainPage *-- WeatherPanel : composes
 
     WalkMapWidget ..> GoogleMapsAPI : calls
-
+```
 
 ## クラス概要
 
