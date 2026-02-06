@@ -1,0 +1,40 @@
+sequenceDiagram
+    autonumber
+    actor User as User
+    participant Main as MainPage
+    participant Map as WalkMapWidget
+    participant GDir as Google Directions API
+    participant GPlace as Google Places API
+
+    User->>Main: Input Origin/Dest
+    User->>Main: Select Filter "Convenience Store"
+    User->>Main: Confirm Input (Focus out)
+    activate Main
+    Main->>Main: _updateRoute()
+    Main->>Map: Rebuild (origin, dest, filters)
+    deactivate Main
+
+    activate Map
+    Map->>Map: _loadRouteAndPlaces()
+    
+    Map->>GDir: Route Search Request (origin, dest, mode=walking)
+    activate GDir
+    GDir-->>Map: Route Data (JSON)
+    deactivate GDir
+
+    Map->>Map: Draw Route (_polylines.add)
+    Map->>Map: Add Origin/Dest Markers (_markers.add)
+
+    alt With Filter (Convenience Store)
+        Map->>Map: _sampleRoute(route)
+        loop Per Sample Point
+            Map->>GPlace: Nearby Search (type=convenience_store)
+            activate GPlace
+            GPlace-->>Map: Place List
+            deactivate GPlace
+        end
+        Map->>Map: Add Place Markers (_markers.add)
+    end
+
+    Map-->>User: Update Map (Show Route/Markers)
+    deactivate Map

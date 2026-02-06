@@ -1,0 +1,40 @@
+sequenceDiagram
+    autonumber
+    actor User as ユーザー
+    participant Main as MainPage
+    participant Map as WalkMapWidget
+    participant GDir as Google Directions API
+    participant GPlace as Google Places API
+
+    User->>Main: 出発地・目的地を入力
+    User->>Main: フィルタ「コンビニさんぽ」を選択
+    User->>Main: 入力確定 (フォーカスアウト)
+    activate Main
+    Main->>Main: _updateRoute()
+    Main->>Map: 再描画 (origin, dest, filters)
+    deactivate Main
+
+    activate Map
+    Map->>Map: _loadRouteAndPlaces()
+    
+    Map->>GDir: 経路検索リクエスト (origin, dest, mode=walking)
+    activate GDir
+    GDir-->>Map: 経路データ (JSON)
+    deactivate GDir
+
+    Map->>Map: ルート描画 (_polylines.add)
+    Map->>Map: 出発・到着マーカー追加 (_markers.add)
+
+    alt フィルタあり (コンビニさんぽ)
+        Map->>Map: _sampleRoute(route)
+        loop サンプリング地点ごと
+            Map->>GPlace: 周辺検索 (type=convenience_store)
+            activate GPlace
+            GPlace-->>Map: 施設リスト
+            deactivate GPlace
+        end
+        Map->>Map: 施設マーカー追加 (_markers.add)
+    end
+
+    Map-->>User: 地図更新 (ルート・マーカー表示)
+    deactivate Map

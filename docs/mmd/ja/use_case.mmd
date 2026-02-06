@@ -1,0 +1,30 @@
+flowchart LR
+    User["ユーザー"]
+    GMaps["Google Maps API"]
+    Firebase["Firebase Auth"]
+    WeatherAPI["OpenWeatherMap API"]
+
+    subgraph "さんぽAI (HM Shop)"
+        UC1(("ログイン / 登録"))
+        UC2(("ログアウト"))
+        UC3(("ルート検索"))
+        UC4(("地図・ルート表示"))
+        UC5(("スポット検索"))
+        UC6(("歩数・距離確認"))
+        UC7(("天気確認"))
+    end
+
+    User --> UC1
+    User --> UC2
+    User --> UC3
+    User --> UC4
+    User --> UC6
+    User --> UC7
+
+    UC1 -. 認証 .-> Firebase
+    UC2 -. サインアウト .-> Firebase
+    UC3 -. Directions API .-> GMaps
+    UC4 -. Maps SDK .-> GMaps
+    UC5 -. Places API .-> GMaps
+    UC5 -. extend .-> UC3
+    UC7 -. 天気取得 .-> WeatherAPI

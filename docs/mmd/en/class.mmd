@@ -1,0 +1,85 @@
+classDiagram
+    %% =========================
+    %% Main Page
+    %% =========================
+    class MainPage {
+        -TextEditingController _originController
+        -TextEditingController _destController
+        -Set~String~ _selectedFilters
+        -WalkMapWidget mapWidget
+        +initState()
+        +build()
+        -_updateRoute()
+        -_loadAppVersion()
+    }
+
+    %% =========================
+    %% Map Widget
+    %% =========================
+    class WalkMapWidget {
+        +String origin
+        +String destination
+        +String? waypoint
+        +Set~String~ filters
+        -Set~Marker~ _markers
+        -Set~Polyline~ _polylines
+        +createState()
+        -_getRoute()
+        -_loadPlacesAlongRoute()
+    }
+
+    %% =========================
+    %% Services
+    %% =========================
+    class AuthService {
+        -FirebaseAuth _auth
+        +bool isAuthenticated
+        +signIn(email, password)
+        +signOut()
+        +register(email, password)
+    }
+
+    class StepService {
+        -Map~String, int~ _dailySteps
+        +saveStep(date, steps)
+        +getStepsForDate(date)
+        +getLast7DaysKm()
+        +clearAllData()
+    }
+
+    %% =========================
+    %% UI Components
+    %% =========================
+    class WeatherPanel {
+        +String originName
+        +String destinationName
+        +onSystemCommentChanged
+    }
+
+    class StepCounter {
+        +build()
+    }
+
+    class WeeklyDistanceChart {
+        +build()
+    }
+
+    %% =========================
+    %% External API
+    %% =========================
+    class GoogleMapsAPI {
+        <<external>>
+    }
+
+    %% =========================
+    %% Relationships
+    %% =========================
+    MainPage --> AuthService : uses (Provider)
+    MainPage --> StepService : uses (Provider)
+
+    MainPage *-- WalkMapWidget : composes
+    MainPage *-- StepCounter : composes
+    MainPage *-- WeeklyDistanceChart : composes
+    MainPage *-- WeatherPanel : composes
+
+    WalkMapWidget ..> GoogleMapsAPI : calls

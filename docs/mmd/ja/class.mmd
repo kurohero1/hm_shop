@@ -1,0 +1,85 @@
+classDiagram
+    %% =========================
+    %% Main Page
+    %% =========================
+    class MainPage["MainPage (メイン画面)"] {
+        -TextEditingController _originController
+        -TextEditingController _destController
+        -Set~String~ _selectedFilters
+        -WalkMapWidget mapWidget
+        +initState()
+        +build()
+        -_updateRoute()
+        -_loadAppVersion()
+    }
+
+    %% =========================
+    %% Map Widget
+    %% =========================
+    class WalkMapWidget["WalkMapWidget (地図ウィジェット)"] {
+        +String origin
+        +String destination
+        +String? waypoint
+        +Set~String~ filters
+        -Set~Marker~ _markers
+        -Set~Polyline~ _polylines
+        +createState()
+        -_getRoute()
+        -_loadPlacesAlongRoute()
+    }
+
+    %% =========================
+    %% Services
+    %% =========================
+    class AuthService["AuthService (認証サービス)"] {
+        -FirebaseAuth _auth
+        +bool isAuthenticated
+        +signIn(email, password)
+        +signOut()
+        +register(email, password)
+    }
+
+    class StepService["StepService (歩数サービス)"] {
+        -Map~String, int~ _dailySteps
+        +saveStep(date, steps)
+        +getStepsForDate(date)
+        +getLast7DaysKm()
+        +clearAllData()
+    }
+
+    %% =========================
+    %% UI Components
+    %% =========================
+    class WeatherPanel["WeatherPanel (天気パネル)"] {
+        +String originName
+        +String destinationName
+        +onSystemCommentChanged
+    }
+
+    class StepCounter["StepCounter (歩数計)"] {
+        +build()
+    }
+
+    class WeeklyDistanceChart["WeeklyDistanceChart (週間距離グラフ)"] {
+        +build()
+    }
+
+    %% =========================
+    %% External API
+    %% =========================
+    class GoogleMapsAPI["GoogleMapsAPI (外部)"] {
+        <<external>>
+    }
+
+    %% =========================
+    %% Relationships
+    %% =========================
+    MainPage --> AuthService : uses (Provider)
+    MainPage --> StepService : uses (Provider)
+
+    MainPage *-- WalkMapWidget : composes
+    MainPage *-- StepCounter : composes
+    MainPage *-- WeeklyDistanceChart : composes
+    MainPage *-- WeatherPanel : composes
+
+    WalkMapWidget ..> GoogleMapsAPI : calls
