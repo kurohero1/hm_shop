@@ -1,23 +1,25 @@
 # ユースケース図・記述
 
-## 1. ユースケース図 (Mermaid)
+## 1. ユースケース図 (Mermaid - Compatible Version)
+
+> Note: Changed to `flowchart` syntax for better compatibility with older Mermaid renderers.
 
 ```mermaid
-usecaseDiagram
-    actor User as "User"
-    actor GMaps as "Google Maps API"
-    actor Firebase as "Firebase Auth"
-    actor WeatherAPI as "OpenWeatherMap API"
+flowchart LR
+    User["User"]
+    GMaps["Google Maps API"]
+    Firebase["Firebase Auth"]
+    WeatherAPI["OpenWeatherMap API"]
 
-    package "Sanpo AI (HM Shop)" {
-        usecase "Login / Register" as UC1
-        usecase "Logout" as UC2
-        usecase "Search Route" as UC3
-        usecase "Show Map & Route" as UC4
-        usecase "Search Spots" as UC5
-        usecase "Check Steps / Distance" as UC6
-        usecase "Check Weather" as UC7
-    }
+    subgraph "Sanpo AI (HM Shop)"
+        UC1(("Login / Register"))
+        UC2(("Logout"))
+        UC3(("Search Route"))
+        UC4(("Show Map & Route"))
+        UC5(("Search Spots"))
+        UC6(("Check Steps / Distance"))
+        UC7(("Check Weather"))
+    end
 
     User --> UC1
     User --> UC2
@@ -26,13 +28,13 @@ usecaseDiagram
     User --> UC6
     User --> UC7
 
-    UC1 ..> Firebase : Auth
-    UC2 ..> Firebase : Sign out
-    UC3 ..> GMaps : Directions API
-    UC4 ..> GMaps : Maps SDK
-    UC5 ..> GMaps : Places API
-    UC3 <.. UC5 : extend
-    UC7 ..> WeatherAPI : Weather
+    UC1 -. Auth .-> Firebase
+    UC2 -. Sign out .-> Firebase
+    UC3 -. Directions API .-> GMaps
+    UC4 -. Maps SDK .-> GMaps
+    UC5 -. Places API .-> GMaps
+    UC5 -. extend .-> UC3
+    UC7 -. Weather .-> WeatherAPI
 ```
 
 ## 2. ユースケース記述
