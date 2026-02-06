@@ -4,35 +4,35 @@
 
 ```mermaid
 usecaseDiagram
-actor "ユーザー" as User
-actor "Google Maps API" as GMaps
-actor "Firebase Auth" as Firebase
-actor "OpenWeatherMap API" as WeatherAPI
+    actor User as "User"
+    actor GMaps as "Google Maps API"
+    actor Firebase as "Firebase Auth"
+    actor WeatherAPI as "OpenWeatherMap API"
 
-package "さんぽAI (HM Shop)" {
-    usecase "ログイン/登録" as UC1
-    usecase "ログアウト" as UC2
-    usecase "ルート検索" as UC3
-    usecase "地図・ルート表示" as UC4
-    usecase "スポット検索・表示" as UC5
-    usecase "歩数・距離確認" as UC6
-    usecase "天気情報確認" as UC7
-}
+    package "Sanpo AI (HM Shop)" {
+        usecase "Login / Register" as UC1
+        usecase "Logout" as UC2
+        usecase "Search Route" as UC3
+        usecase "Show Map & Route" as UC4
+        usecase "Search Spots" as UC5
+        usecase "Check Steps / Distance" as UC6
+        usecase "Check Weather" as UC7
+    }
 
-User --> UC1
-User --> UC2
-User --> UC3
-User --> UC4
-User --> UC6
-User --> UC7
+    User --> UC1
+    User --> UC2
+    User --> UC3
+    User --> UC4
+    User --> UC6
+    User --> UC7
 
-UC1 ..> Firebase : 認証
-UC2 ..> Firebase : サインアウト
-UC3 ..> GMaps : 経路計算 (Directions API)
-UC4 ..> GMaps : 地図表示 (Maps SDK)
-UC5 ..> GMaps : スポット検索 (Places API)
-UC3 <.. UC5 : <<extend>> (ルート沿いの検索)
-UC7 ..> WeatherAPI : 天気取得 (Inferred)
+    UC1 ..> Firebase : Auth
+    UC2 ..> Firebase : Sign out
+    UC3 ..> GMaps : Directions API
+    UC4 ..> GMaps : Maps SDK
+    UC5 ..> GMaps : Places API
+    UC3 <.. UC5 : extend
+    UC7 ..> WeatherAPI : Weather
 ```
 
 ## 2. ユースケース記述
